@@ -1,9 +1,25 @@
+import numpy as np
 import pandas as pd
 
-DATA_PATH = '../data'
-TEAMS_FILE = f"{DATA_PATH}/teams.csv"
-TEAMS_PROCESSED_FILE = f"{DATA_PATH}/teams.processed.feather"
-TEAMS_COLUMNS = ['TEAM_ID', 'NAME', 'NICKNAME', 'CITY']
+DATA_PATH = 'data'
+
+SEASONS_PROCESSED_DS = f"{DATA_PATH}/seasons.processed.feather"
+
+TEAMS_DS = f"{DATA_PATH}/teams.processed.feather"
+TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
+
+GAMES_DS = f"{DATA_PATH}/games.csv"
+GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
+
+def change_path():
+    global SEASONS_PROCESSED_DS, TEAMS_DS, TEAMS_PROCESSED_DS, GAMES_DS, GAMES_PROCESSED_DS
+    SEASONS_PROCESSED_DS = f"{DATA_PATH}/seasons.processed.feather"
+
+    TEAMS_DS = f"{DATA_PATH}/teams.processed.feather"
+    TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
+
+    GAMES_DS = f"{DATA_PATH}/games.csv"
+    GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
 
 GAME_COLUMNS = [
     'DATE',
@@ -74,22 +90,16 @@ GAME_COLUMNS = [
     'AT_AWAY_DEF_REB',
 ]
 
-
-def preprocess_teams():
-    columns = ['TEAM_ID', 'ABBREVIATION', 'NICKNAME', 'CITY']
-    teams = pd.read_csv(TEAMS_FILE, usecols=columns)
-    teams.rename(columns={"ABBREVIATION": "NAME"}, inplace=True)
-    teams.to_feather(TEAMS_PROCESSED_FILE)
-
-
-def preprocess_games():
-    columns = ['GAME_DATE_EST', 'GAME_ID', 'GAME_STATUS_TEXT', 'HOME_TEAM_ID',
-               'VISITOR_TEAM_ID', 'SEASON', 'TEAM_ID_home', 'PTS_home', 'FG_PCT_home',
-               'FT_PCT_home', 'FG3_PCT_home', 'AST_home', 'REB_home', 'TEAM_ID_away',
-               'PTS_away', 'FG_PCT_away', 'FT_PCT_away', 'FG3_PCT_away', 'AST_away',
-               'REB_away', 'HOME_TEAM_WINS']
+def load_datasets():
+    global games, teams, seasons
+    games = pd.read_csv("../nba-games/games.csv",parse_dates=["GAME_DATE_EST"]
+                    ,infer_datetime_format=True)
+    teams = pd.read_feather(TEAMS_PROCESSED_DS)
+    seasons = pd.read_feather(SEASONS_PROCESSED_DS)
 
 
 if __name__ == "__main__":
-    preprocess_teams()
-    print(pd.read_feather(TEAMS_PROCESSED_FILE))
+    DATA_PATH = "../data"
+    change_path()
+    load_datasets()
+    print(games.head())
