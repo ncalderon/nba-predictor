@@ -95,141 +95,210 @@ GAME_COLUMNS = [
 
 
 def load_datasets():
-    global games, teams, seasons
+    global games, season_games, teams, seasons
     games = pd.read_csv(GAMES_DS, parse_dates=["GAME_DATE_EST"]
                         , infer_datetime_format=True, index_col="GAME_ID")
     games = games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
     teams = pd.read_feather(TEAMS_PROCESSED_DS)
     seasons = pd.read_feather(SEASONS_PROCESSED_DS)
+    season_games = get_season_games(games, seasons)
+
+def get_season_games(games, seasons):
+    row = seasons.iloc[0]
+    season_games = games[(games.SEASON == row.SEASON) & \
+                        (games.GAME_DATE_EST >= row.SEASON_START) & \
+                         (games.GAME_DATE_EST <= row.SEASON_END)
+                         ]
+    for i in range(1, len(seasons)):
+        nonlocal season_games
+        row = seasons.iloc[i]
+        temp = games[(games.SEASON == row.SEASON) & \
+                             (games.GAME_DATE_EST >= row.SEASON_START) & \
+                             (games.GAME_DATE_EST <= row.SEASON_END)
+                             ]
+        season_games = pd.concat([season_games, temp])
+
+    return season_games
 
 
-def get_team(row, games):
+def get_acc_data(home_team_id: int, visitor_team_id: int, season_team_games: DataFrame, last10_matchup: DataFrame):
+    acc_data = {}
+    previous_ht_games = season_team_games[(season_team_games.HOME_TEAM_ID == home_team_id)]
+    hw = previous_ht_games.HOME_TEAM_WINS.sum()
+    hl = previous_ht_games.HOME_TEAM_WINS.count() - hw
+    acc_data["HT_HW"] = hw
+    acc_data["HT_HL"] = hl
+
+    previous_vt_games = season_team_games[(season_team_games.VISITOR_TEAM_ID == home_team_id)]
+
+    vl = previous_vt_games.HOME_TEAM_WINS.sum()
+    vw = previous_vt_games.HOME_TEAM_WINS.count() - vl
+    acc_data["HT_VW"] = vw
+    acc_data["HT_VL"] = vl
+
+    last10_games = season_team_games.tail(10)
+    last10_hw = last10_games.HOME_TEAM_WINS.sum()
+    last10_hl = last10_games.HOME_TEAM_WINS.count() - last10_hw
+    last10_vl = last10_games.HOME_TEAM_WINS.sum()
+    last10_vw = last10_games.HOME_TEAM_WINS.count() - vl
+    last10_w = last10_hw + last10_vw
+    last10_l = last10_hl + last10_vl
+
+    acc_data["HT_LAST10_W"] = last10_w
+    acc_data["HT_LAST10_L"] = last10_l
+
+    last10_matchup_hw = last10_matchup.HOME_TEAM_WINS.sum()
+    last10_matchup_hl = last10_matchup.HOME_TEAM_WINS.count() - last10_hw
+    last10_matchup_vl = last10_matchup.HOME_TEAM_WINS.sum()
+    last10_matchup_vw = last10_matchup.HOME_TEAM_WINS.count() - vl
+    last10_matchup_w = last10_matchup_hw + last10_matchup_vw
+    last10_matchup_l = last10_matchup_hl + last10_matchup_vl
+    acc_data["HT_LAST10_MATCHUP_W"] = last10_matchup_w
+    acc_data["HT_LAST10_MATCHUP_L"] = last10_matchup_l
+
+    acc_data["HT_OVERALL_OFF_POINTS"] = pd.concat([previous_ht_games.PTS_home, previous_vt_games.PTS_away], axis=0).mean()
+    acc_data["HT_OVERALL_DEF_POINTS"] = pd.concat([previous_ht_games.PTS_away, previous_vt_games.PTS_home], axis=0).mean()
+
+    acc_data["HT_OVERALL_OFF_FG"] = pd.concat([previous_ht_games.FG_PCT_home, previous_vt_games.FG_PCT_away],
+                                                  axis=0).mean()
+    acc_data["HT_OVERALL_DEF_FG"] = pd.concat([previous_ht_games.FG_PCT_away, previous_vt_games.FG_PCT_home],
+                                                  axis=0).mean()
+
+    acc_data["HT_OVERALL_OFF_3P"] = pd.concat([previous_ht_games.FG3_PCT_home, previous_vt_games.FG3_PCT_away],
+                                              axis=0).mean()
+    acc_data["HT_OVERALL_DEF_3P"] = pd.concat([previous_ht_games.FG3_PCT_away, previous_vt_games.FG3_PCT_home],
+                                              axis=0).mean()
+
+    acc_data["HT_OVERALL_OFF_FT"] = pd.concat([previous_ht_games.FT_PCT_home, previous_vt_games.FT_PCT_away],
+                                              axis=0).mean()
+    acc_data["HT_OVERALL_DEF_FT"] = pd.concat([previous_ht_games.FT_PCT_away, previous_vt_games.FT_PCT_home],
+                                              axis=0).mean()
+
+    acc_data["HT_OVERALL_OFF_REB"] = pd.concat([previous_ht_games.REB_home, previous_vt_games.REB_away],
+                                              axis=0).mean()
+    acc_data["HT_OVERALL_DEF_REB"] = pd.concat([previous_ht_games.REB_away, previous_vt_games.REB_home],
+                                              axis=0).mean()
+
+    acc_data["HT_AWAY_POINTS"] = previous_vt_games.PTS_away.mean()
+    acc_data["HT_AWAY_FG"] = previous_vt_games.FG_PCT_away.mean()
+    acc_data["HT_AWAY_3P"] = previous_vt_games.FG3_PCT_away.mean()
+    acc_data["HT_AWAY_FT"] = previous_vt_games.FT_PCT_away.mean()
+    acc_data["HT_AWAY_REB"] = previous_vt_games.REB_away.mean()
+
+
+def get_team(row, season_games):
     pass
 
-def get_rank(row, games):
+
+def get_rank(team_id: int, season_games: DataFrame, until_game=-1):
     return None
 
 
-def get_class(row, games):
+def get_class(team_id: int, season_games: DataFrame, until_game=-1):
     return None
 
 
-def get_hw(row, games):
-    query =
-
-
-def get_hl(row, games):
+def get_last10_w(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_vw(row, games):
+def get_last10_l(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_vl(row, games):
+def get_last10_matchup_w(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_last10_w(row, games):
+def get_last10_matchup_l(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_last10_l(row, games):
+def get_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_last10_matchup_w(row, games):
+def get_overall_def_points(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_last10_matchup_l(row, games):
+def get_overall_off_fg(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_off_points(row, games):
+def get_overall_def_fg(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_def_points(row, games):
+def get_overall_off_3p(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_off_fg(row, games):
+def get_overall_def_3p(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_def_fg(row, games):
+def get_overall_off_ft(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_off_3p(row, games):
+def get_overall_def_ft(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_def_3p(row, games):
+def get_overall_off_reb(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_off_ft(row, games):
+def get_overall_def_reb(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_def_ft(row, games):
+def get_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_off_reb(row, games):
+def get_away_def_points(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_def_reb(row, games):
+def get_away_off_fg(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_overall_off_points(row, games):
+def get_away_def_fg(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_def_points(row, games):
+def get_away_off_3p(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_off_fg(row, games):
+def get_away_def_3p(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_def_fg(row, games):
+def get_away_off_ft(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_off_3p(row, games):
+def get_away_def_ft(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_def_3p(row, games):
+def get_away_off_reb(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_off_ft(row, games):
+def get_away_def_reb(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def get_away_def_ft(row, games):
-    pass
-
-
-def get_away_off_reb(row, games):
-    pass
-
-
-def get_away_def_reb(row, games):
-    pass
-
-
-def process(games: DataFrame):
+def process(season_games: DataFrame):
     games_processed: DataFrame = pd.DataFrame(columns=GAME_COLUMNS)
-    game_processed = {}
-    for i in range(len(games)):
+
+    for i in range(len(season_games)):
+        game_processed = {}
         row = games.iloc[i, :]
         print(games.iloc[i, :])
 
@@ -237,68 +306,69 @@ def process(games: DataFrame):
         game_processed['DATE'] = row["GAME_DATE_EST"]
         # # HOME TEAM
         game_processed['HT'] = row["HOME_TEAM_ID"]
-        game_processed['HT_RANK'] = get_rank(row, games)
-        game_processed['HT_CLASS'] = get_class(row, games)
-        game_processed['HT_HW'] = get_hw(row, games)
-        # games_processed['HT_HL'] = get_ht_hl(row, games)
-        # games_processed['HT_VW'] = get_ht_vw(row, games)
-        # games_processed['HT_VL'] = get_ht_vl(row, games)
-        # games_processed['HT_LAST10_W'] = get_ht_last10_w(row, games)
-        # games_processed['HT_LAST10_L'] = get_ht_last10_l(row, games)
-        # games_processed['HT_LAST10_MATCHUP_W'] = get_ht_last10_matchup_w(row, games)
-        # games_processed['HT_LAST10_MATCHUP_L'] = get_ht_last10_matchup_l(row, games)
-        # games_processed['HT_OVERALL_OFF_POINTS'] = get_ht_overall_off_points(row, games)
-        # games_processed['HT_OVERALL_DEF_POINTS'] = get_ht_overall_def_points(row, games)
-        # games_processed['HT_OVERALL_OFF_FG'] = get_ht_overall_off_fg(row, games)
-        # games_processed['HT_OVERALL_DEF_FG'] = get_ht_overall_def_fg(row, games)
-        # games_processed['HT_OVERALL_OFF_3P'] = get_ht_overall_off_3p(row, games)
-        # games_processed['HT_OVERALL_DEF_3P'] = get_ht_overall_def_3p(row, games)
-        # games_processed['HT_OVERALL_OFF_FT'] = get_ht_overall_off_ft(row, games)
-        # games_processed['HT_OVERALL_DEF_FT'] = get_ht_overall_def_ft(row, games)
-        # games_processed['HT_OVERALL_OFF_REB'] = get_ht_overall_off_reb(row, games)
-        # games_processed['HT_OVERALL_DEF_REB'] = get_ht_overall_def_reb(row, games)
-        # games_processed['HT_OVERALL_OFF_POINTS'] = get_ht_overall_off_points(row, games)
-        # games_processed['HT_AWAY_DEF_POINTS'] = get_ht_away_def_points(row, games)
-        # games_processed['HT_AWAY_OFF_FG'] = get_ht_away_off_fg(row, games)
-        # games_processed['HT_AWAY_DEF_FG'] = get_ht_away_def_fg(row, games)
-        # games_processed['HT_AWAY_OFF_3P'] = get_ht_away_off_3p(row, games)
-        # games_processed['HT_AWAY_DEF_3P'] = get_ht_away_def_3p(row, games)
-        # games_processed['HT_AWAY_OFF_FT'] = get_ht_away_off_ft(row, games)
-        # games_processed['HT_AWAY_DEF_FT'] = get_ht_away_def_ft(row, games)
-        # games_processed['HT_AWAY_OFF_REB'] = get_ht_away_off_reb(row, games)
-        # games_processed['HT_AWAY_DEF_REB'] = get_ht_away_def_reb(row, games)
+        game_processed['HT_RANK'] = None
+        game_processed['HT_CLASS'] = None
+        game_processed['HT_HW'] = None
+
+        # games_processed['HT_HL'] = get_ht_hl(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_VW'] = get_ht_vw(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_VL'] = get_ht_vl(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_LAST10_W'] = get_ht_last10_w(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_LAST10_L'] = get_ht_last10_l(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_LAST10_MATCHUP_W'] = get_ht_last10_matchup_w(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_LAST10_MATCHUP_L'] = get_ht_last10_matchup_l(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_OFF_POINTS'] = get_ht_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_DEF_POINTS'] = get_ht_overall_def_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_OFF_FG'] = get_ht_overall_off_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_DEF_FG'] = get_ht_overall_def_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_OFF_3P'] = get_ht_overall_off_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_DEF_3P'] = get_ht_overall_def_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_OFF_FT'] = get_ht_overall_off_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_DEF_FT'] = get_ht_overall_def_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_OFF_REB'] = get_ht_overall_off_reb(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_DEF_REB'] = get_ht_overall_def_reb(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_OVERALL_OFF_POINTS'] = get_ht_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_DEF_POINTS'] = get_ht_away_def_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_OFF_FG'] = get_ht_away_off_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_DEF_FG'] = get_ht_away_def_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_OFF_3P'] = get_ht_away_off_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_DEF_3P'] = get_ht_away_def_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_OFF_FT'] = get_ht_away_off_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_DEF_FT'] = get_ht_away_def_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_OFF_REB'] = get_ht_away_off_reb(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['HT_AWAY_DEF_REB'] = get_ht_away_def_reb(team_id: int, season_games: DataFrame, until_game=-1)
         # games_processed[]# AWAY TEA] = get_ AWAY(row, games
-        # games_processed['AT'] = get_at(row, games)
-        # games_processed['AT_RANK'] = get_at_rank(row, games)
-        # games_processed['AT_CLASS'] = get_at_class(row, games)
-        # games_processed['AT_HW'] = get_at_hw(row, games)
-        # games_processed['AT_HL'] = get_at_hl(row, games)
-        # games_processed['AT_VW'] = get_at_vw(row, games)
-        # games_processed['AT_VL'] = get_at_vl(row, games)
-        # games_processed['AT_LAST10_W'] = get_at_last10_w(row, games)
-        # games_processed['AT_LAST10_L'] = get_at_last10_l(row, games)
-        # games_processed['AT_LAST10_MATCHUP_W'] = get_at_last10_matchup_w(row, games)
-        # games_processed['AT_LAST10_MATCHUP_L'] = get_at_last10_matchup_l(row, games)
-        # games_processed['AT_OVERALL_OFF_POINTS'] = get_at_overall_off_points(row, games)
-        # games_processed['AT_OVERALL_DEF_POINTS'] = get_at_overall_def_points(row, games)
-        # games_processed['AT_OVERALL_OFF_FG'] = get_at_overall_off_fg(row, games)
-        # games_processed['AT_OVERALL_DEF_FG'] = get_at_overall_def_fg(row, games)
-        # games_processed['AT_OVERALL_OFF_3P'] = get_at_overall_off_3p(row, games)
-        # games_processed['AT_OVERALL_DEF_3P'] = get_at_overall_def_3p(row, games)
-        # games_processed['AT_OVERALL_OFF_FT'] = get_at_overall_off_ft(row, games)
-        # games_processed['AT_OVERALL_DEF_FT'] = get_at_overall_def_ft(row, games)
-        # games_processed['AT_OVERALL_OFF_REB'] = get_at_overall_off_reb(row, games)
-        # games_processed['AT_OVERALL_DEF_REB'] = get_at_overall_def_reb(row, games)
-        # games_processed['AT_OVERALL_OFF_POINTS'] = get_at_overall_off_points(row, games)
-        # games_processed['AT_AWAY_DEF_POINTS'] = get_at_away_def_points(row, games)
-        # games_processed['AT_AWAY_OFF_FG'] = get_at_away_off_fg(row, games)
-        # games_processed['AT_AWAY_DEF_FG'] = get_at_away_def_fg(row, games)
-        # games_processed['AT_AWAY_OFF_3P'] = get_at_away_off_3p(row, games)
-        # games_processed['AT_AWAY_DEF_3P'] = get_at_away_def_3p(row, games)
-        # games_processed['AT_AWAY_OFF_FT'] = get_at_away_off_ft(row, games)
-        # games_processed['AT_AWAY_DEF_FT'] = get_at_away_def_ft(row, games)
-        # games_processed['AT_AWAY_OFF_REB'] = get_at_away_off_reb(row, games)
-        # games_processed['AT_AWAY_DEF_REB'] = get_at_away_def_reb(row, games)
+        # games_processed['AT'] = get_at(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_RANK'] = get_at_rank(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_CLASS'] = get_at_class(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_HW'] = get_at_hw(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_HL'] = get_at_hl(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_VW'] = get_at_vw(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_VL'] = get_at_vl(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_LAST10_W'] = get_at_last10_w(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_LAST10_L'] = get_at_last10_l(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_LAST10_MATCHUP_W'] = get_at_last10_matchup_w(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_LAST10_MATCHUP_L'] = get_at_last10_matchup_l(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_OFF_POINTS'] = get_at_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_DEF_POINTS'] = get_at_overall_def_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_OFF_FG'] = get_at_overall_off_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_DEF_FG'] = get_at_overall_def_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_OFF_3P'] = get_at_overall_off_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_DEF_3P'] = get_at_overall_def_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_OFF_FT'] = get_at_overall_off_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_DEF_FT'] = get_at_overall_def_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_OFF_REB'] = get_at_overall_off_reb(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_DEF_REB'] = get_at_overall_def_reb(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_OVERALL_OFF_POINTS'] = get_at_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_DEF_POINTS'] = get_at_away_def_points(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_OFF_FG'] = get_at_away_off_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_DEF_FG'] = get_at_away_def_fg(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_OFF_3P'] = get_at_away_off_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_DEF_3P'] = get_at_away_def_3p(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_OFF_FT'] = get_at_away_off_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_DEF_FT'] = get_at_away_def_ft(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_OFF_REB'] = get_at_away_off_reb(team_id: int, season_games: DataFrame, until_game=-1)
+        # games_processed['AT_AWAY_DEF_REB'] = get_at_away_def_reb(team_id: int, season_games: DataFrame, until_game=-1)
 
     return games_processed
 
