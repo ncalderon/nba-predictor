@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+from tqdm import tqdm
 
 DATA_PATH = 'data'
 
@@ -11,6 +12,7 @@ TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
 
 GAMES_DS = f"{DATA_PATH}/games.csv"
 GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
+GAMES_PROCESSED_DS_CSV = f"{DATA_PATH}/games.processed.csv"
 
 
 def change_path():
@@ -22,9 +24,6 @@ def change_path():
 
     GAMES_DS = f"{DATA_PATH}/games.csv"
     GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
-
-
-
 
 
 def load_datasets():
@@ -53,71 +52,102 @@ def get_season_games(games, seasons):
     return season_games
 
 
-def get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: DataFrame):
-    acc_data = {}
+def get_balance_last_games(team_id: int, last_games: DataFrame):
+    if last_games.empty:
+        return 0, 0
+    h_games = last_games[last_games.HOME_TEAM_ID == team_id]
+    hw = h_games.HOME_TEAM_WINS.sum()
+    hl = len(h_games) - hw
+
+    v_games = last_games[last_games.VISITOR_TEAM_ID == team_id]
+    vl = v_games.HOME_TEAM_WINS.sum()
+    vw = len(v_games) - vl
+
+    w = hw + vw
+    l = hl + vl
+    return w, l
+
+def get_balance_previous_season_games(team_id: int, previous_season_games: DataFrame, is_visitor = False):
+    if previous_season_games.empty:
+        return 0, 0
+    else:
+        if not is_visitor:
+            w = previous_season_games.HOME_TEAM_WINS.sum()
+            l = previous_season_games.HOME_TEAM_WINS.count() - w
+        else:
+            l = previous_season_games.HOME_TEAM_WINS.sum()
+            w = previous_season_games.HOME_TEAM_WINS.count() - l
+        return w, l
+
+def get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: DataFrame, is_visit=False):
+    prefix_key = "HT" if not is_visit else "VT"
+    acc_data = {f"{prefix_key}": team_id, f"{prefix_key}_RANK": None, f"{prefix_key}_CLASS": None}
+
     previous_ht_games = season_team_games[(season_team_games.HOME_TEAM_ID == team_id)]
-    hw = previous_ht_games.HOME_TEAM_WINS.sum()
-    hl = previous_ht_games.HOME_TEAM_WINS.count() - hw
-    acc_data["HT_HW"] = hw
-    acc_data["HT_HL"] = hl
+    acc_data[f"{prefix_key}_HW"], acc_data[f"{prefix_key}_HL"] = get_balance_previous_season_games(team_id, previous_ht_games)
 
     previous_vt_games = season_team_games[(season_team_games.VISITOR_TEAM_ID == team_id)]
-
-    vl = previous_vt_games.HOME_TEAM_WINS.sum()
-    vw = previous_vt_games.HOME_TEAM_WINS.count() - vl
-    acc_data["HT_VW"] = vw
-    acc_data["HT_VL"] = vl
+    acc_data[f"{prefix_key}_VW"], acc_data[f"{prefix_key}_VL"] =  get_balance_previous_season_games(team_id, previous_vt_games, True)
 
     last10_games = season_team_games.tail(10)
-    last10_hw = last10_games.HOME_TEAM_WINS.sum()
-    last10_hl = last10_games.HOME_TEAM_WINS.count() - last10_hw
-    last10_vl = last10_games.HOME_TEAM_WINS.sum()
-    last10_vw = last10_games.HOME_TEAM_WINS.count() - vl
-    last10_w = last10_hw + last10_vw
-    last10_l = last10_hl + last10_vl
 
-    acc_data["HT_LAST10_W"] = last10_w
-    acc_data["HT_LAST10_L"] = last10_l
+    acc_data[f"{prefix_key}_LAST10_W"], acc_data[f"{prefix_key}_LAST10_L"] = get_balance_last_games(team_id,
+                                                                                                    last10_games)
 
-    last10_matchup_hw = last10_matchup.HOME_TEAM_WINS.sum()
-    last10_matchup_hl = last10_matchup.HOME_TEAM_WINS.count() - last10_hw
-    last10_matchup_vl = last10_matchup.HOME_TEAM_WINS.sum()
-    last10_matchup_vw = last10_matchup.HOME_TEAM_WINS.count() - vl
-    last10_matchup_w = last10_matchup_hw + last10_matchup_vw
-    last10_matchup_l = last10_matchup_hl + last10_matchup_vl
-    acc_data["HT_LAST10_MATCHUP_W"] = last10_matchup_w
-    acc_data["HT_LAST10_MATCHUP_L"] = last10_matchup_l
+    acc_data[f"{prefix_key}_LAST10_MATCHUP_W"], acc_data[f"{prefix_key}_LAST10_MATCHUP_L"] = get_balance_last_games(
+        team_id,
+        last10_matchup)
 
-    acc_data["HT_OVERALL_OFF_POINTS"] = pd.concat([previous_ht_games.PTS_home, previous_vt_games.PTS_away],
-                                                  axis=0).mean()
-    acc_data["HT_OVERALL_DEF_POINTS"] = pd.concat([previous_ht_games.PTS_away, previous_vt_games.PTS_home],
-                                                  axis=0).mean()
+    if previous_ht_games.empty:
+        previous_ht_games = pd.DataFrame({
+            "PTS_home": 0, "PTS_away": 0,
+            "FG_PCT_home": 0, "FG_PCT_away": 0,
+            "FG3_PCT_home": 0, "FG3_PCT_away": 0,
+            "FT_PCT_home": 0, "FT_PCT_away": 0,
+            "REB_home": 0, "REB_away": 0
+        }, index=[0])
 
-    acc_data["HT_OVERALL_OFF_FG"] = pd.concat([previous_ht_games.FG_PCT_home, previous_vt_games.FG_PCT_away],
-                                              axis=0).mean()
-    acc_data["HT_OVERALL_DEF_FG"] = pd.concat([previous_ht_games.FG_PCT_away, previous_vt_games.FG_PCT_home],
-                                              axis=0).mean()
+    if previous_vt_games.empty:
+        previous_vt_games = pd.DataFrame({
+            "PTS_home": 0, "PTS_away": 0,
+            "FG_PCT_home": 0, "FG_PCT_away": 0,
+            "FG3_PCT_home": 0, "FG3_PCT_away": 0,
+            "FT_PCT_home": 0, "FT_PCT_away": 0,
+            "REB_home": 0, "REB_away": 0
+        }, index=[0])
 
-    acc_data["HT_OVERALL_OFF_3P"] = pd.concat([previous_ht_games.FG3_PCT_home, previous_vt_games.FG3_PCT_away],
-                                              axis=0).mean()
-    acc_data["HT_OVERALL_DEF_3P"] = pd.concat([previous_ht_games.FG3_PCT_away, previous_vt_games.FG3_PCT_home],
-                                              axis=0).mean()
+    acc_data[f"{prefix_key}_OVERALL_OFF_POINTS"] = pd.concat([previous_ht_games.PTS_home, previous_vt_games.PTS_away],
+                                                             axis=0).mean().round(decimals=3)
+    acc_data[f"{prefix_key}_OVERALL_DEF_POINTS"] = pd.concat([previous_ht_games.PTS_away, previous_vt_games.PTS_home],
+                                                             axis=0).mean().round(decimals=3)
 
-    acc_data["HT_OVERALL_OFF_FT"] = pd.concat([previous_ht_games.FT_PCT_home, previous_vt_games.FT_PCT_away],
-                                              axis=0).mean()
-    acc_data["HT_OVERALL_DEF_FT"] = pd.concat([previous_ht_games.FT_PCT_away, previous_vt_games.FT_PCT_home],
-                                              axis=0).mean()
+    acc_data[f"{prefix_key}_OVERALL_OFF_FG"] = pd.concat([previous_ht_games.FG_PCT_home, previous_vt_games.FG_PCT_away],
+                                                         axis=0).mean().round(decimals=3)
+    acc_data[f"{prefix_key}_OVERALL_DEF_FG"] = pd.concat([previous_ht_games.FG_PCT_away, previous_vt_games.FG_PCT_home],
+                                                         axis=0).mean().round(decimals=3)
 
-    acc_data["HT_OVERALL_OFF_REB"] = pd.concat([previous_ht_games.REB_home, previous_vt_games.REB_away],
-                                               axis=0).mean()
-    acc_data["HT_OVERALL_DEF_REB"] = pd.concat([previous_ht_games.REB_away, previous_vt_games.REB_home],
-                                               axis=0).mean()
+    acc_data[f"{prefix_key}_OVERALL_OFF_3P"] = pd.concat(
+        [previous_ht_games.FG3_PCT_home, previous_vt_games.FG3_PCT_away],
+        axis=0).mean().round(decimals=3)
+    acc_data[f"{prefix_key}_OVERALL_DEF_3P"] = pd.concat(
+        [previous_ht_games.FG3_PCT_away, previous_vt_games.FG3_PCT_home],
+        axis=0).mean().round(decimals=3)
 
-    acc_data["HT_AWAY_POINTS"] = previous_vt_games.PTS_away.mean()
-    acc_data["HT_AWAY_FG"] = previous_vt_games.FG_PCT_away.mean()
-    acc_data["HT_AWAY_3P"] = previous_vt_games.FG3_PCT_away.mean()
-    acc_data["HT_AWAY_FT"] = previous_vt_games.FT_PCT_away.mean()
-    acc_data["HT_AWAY_REB"] = previous_vt_games.REB_away.mean()
+    acc_data[f"{prefix_key}_OVERALL_OFF_FT"] = pd.concat([previous_ht_games.FT_PCT_home, previous_vt_games.FT_PCT_away],
+                                                         axis=0).mean().round(decimals=3)
+    acc_data[f"{prefix_key}_OVERALL_DEF_FT"] = pd.concat([previous_ht_games.FT_PCT_away, previous_vt_games.FT_PCT_home],
+                                                         axis=0).mean().round(decimals=3)
+
+    acc_data[f"{prefix_key}_OVERALL_OFF_REB"] = pd.concat([previous_ht_games.REB_home, previous_vt_games.REB_away],
+                                                          axis=0).mean().round(decimals=3)
+    acc_data[f"{prefix_key}_OVERALL_DEF_REB"] = pd.concat([previous_ht_games.REB_away, previous_vt_games.REB_home],
+                                                          axis=0).mean().round(decimals=3)
+
+    acc_data[f"{prefix_key}_AWAY_POINTS"] = previous_vt_games.PTS_away.mean().round(decimals=3)
+    acc_data[f"{prefix_key}_AWAY_FG"] = previous_vt_games.FG_PCT_away.mean().round(decimals=3)
+    acc_data[f"{prefix_key}_AWAY_3P"] = previous_vt_games.FG3_PCT_away.mean().round(decimals=3)
+    acc_data[f"{prefix_key}_AWAY_FT"] = previous_vt_games.FT_PCT_away.mean().round(decimals=3)
+    acc_data[f"{prefix_key}_AWAY_REB"] = previous_vt_games.REB_away.mean().round(decimals=3)
     return acc_data
 
 
@@ -229,48 +259,53 @@ def get_away_def_reb(team_id: int, season_games: DataFrame, until_game=-1):
     pass
 
 
-def process(season_games: DataFrame):
-    games_processed: DataFrame = pd.DataFrame(columns=GAME_COLUMNS)
+def get_matchup_report(game, previous_games):
+    game_processed = {}
+    game_id = game.name
+    game_date = game.GAME_DATE_EST
+    home_team_id = game.HOME_TEAM_ID
+    visitor_team_id = game.VISITOR_TEAM_ID
+    season_year = game.SEASON
 
-    for i in reversed(range(len(season_games) - 1)):
-        game_processed = {}
+    game_processed["ID"] = game_id
+    game_processed['DATE'] = game_date
+
+    query = ((season_games.HOME_TEAM_ID == home_team_id) | (season_games.VISITOR_TEAM_ID == home_team_id)) & \
+            ((season_games.HOME_TEAM_ID == visitor_team_id) | (season_games.VISITOR_TEAM_ID == visitor_team_id))
+    last10_matchup = previous_games[query].tail(10)
+
+    query = (season_games.SEASON == season_year) & ((season_games.HOME_TEAM_ID == home_team_id) |
+             (season_games.VISITOR_TEAM_ID == home_team_id
+              ))
+    home_team_season_games = previous_games[query]
+
+    home_team_data = get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
+                                  last10_matchup=last10_matchup)
+
+    query = (season_games.SEASON == season_year) & \
+            ((season_games.HOME_TEAM_ID == visitor_team_id) |
+             (season_games.VISITOR_TEAM_ID == visitor_team_id)
+             )
+    visitor_team_season_games = previous_games[query]
+
+    visitor_team_data = get_acc_data(team_id=visitor_team_id, season_team_games=visitor_team_season_games,
+                                     last10_matchup=last10_matchup, is_visit=True)
+
+    game_processed = {**game_processed, **home_team_data, **visitor_team_data}
+    return game_processed
+
+
+def get_games_matchup_report(season_games: DataFrame, until_season: int = 2015):
+    print(f"Season games: {len(season_games)}")
+    games_matchup = []
+    for i in tqdm(reversed(range(len(season_games) - 1))):
         row = season_games.iloc[i, :]
+        if row.SEASON == until_season:
+            break
+        print(f"Game: {i}, {row.name}")
         previous_games = season_games[:i]
-
-        home_team_id = row.HOME_TEAM_ID
-        visitor_team_id = row.VISITOR_TEAM_ID
-        season_year = row.SEASON
-
-        game_processed["ID"] = row.name
-        game_processed['DATE'] = row["GAME_DATE_EST"]
-        # # HOME TEAM
-        game_processed['HT'] = row["HOME_TEAM_ID"]
-        game_processed['HT_RANK'] = None
-        game_processed['HT_CLASS'] = None
-        game_processed['HT_HW'] = None
-
-        query = ((season_games.HOME_TEAM_ID == home_team_id) | (season_games.VISITOR_TEAM_ID == home_team_id)) & \
-                ((season_games.HOME_TEAM_ID == visitor_team_id) | (season_games.VISITOR_TEAM_ID == visitor_team_id))
-        last10_matchup = previous_games[query].tail(10)
-
-        query = (season_games.SEASON == season_year) & \
-                ((season_games.HOME_TEAM_ID == home_team_id) | \
-                 (season_games.VISITOR_TEAM_ID == home_team_id
-                  ))
-        home_team_season_games = previous_games[query]
-
-        home_team_data = get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
-                                      last10_matchup=last10_matchup)
-
-        query = (season_games.SEASON == season_year) & \
-                ((season_games.HOME_TEAM_ID == visitor_team_id) |
-                 (season_games.VISITOR_TEAM_ID == visitor_team_id)
-                 )
-        visitor_team_season_games = previous_games[query]
-        visitor_team_data = get_acc_data(team_id=visitor_team_id, season_team_games=visitor_team_season_games,
-                                         last10_matchup=last10_matchup)
-
-    return games_processed
+        games_matchup.append(get_matchup_report(row, previous_games))
+    return games_matchup
 
 
 def process_games_by_seasons(games: DataFrame):
@@ -281,4 +316,6 @@ if __name__ == "__main__":
     DATA_PATH = "../data"
     change_path()
     load_datasets()
-    process(season_games=season_games)
+    games_matchup_report_df: DataFrame = pd.DataFrame(get_games_matchup_report(season_games=season_games))
+    games_matchup_report_df.to_feather(GAMES_PROCESSED_DS)
+    games_matchup_report_df.to_csv(GAMES_PROCESSED_DS_CSV)
