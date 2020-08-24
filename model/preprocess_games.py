@@ -28,7 +28,11 @@ def change_path():
 
 def load_datasets():
     global games, season_games, teams, seasons
-    games = pd.read_csv(GAMES_DS, parse_dates=["GAME_DATE_EST"]
+    games = pd.read_csv(GAMES_DS, usecols=["GAME_ID",'GAME_DATE_EST', 'GAME_STATUS_TEXT', 'HOME_TEAM_ID', 'VISITOR_TEAM_ID',
+       'SEASON', 'PTS_home', 'FG_PCT_home', 'FT_PCT_home',
+       'FG3_PCT_home', 'AST_home', 'REB_home', 'PTS_away',
+       'FG_PCT_away', 'FT_PCT_away', 'FG3_PCT_away', 'AST_away', 'REB_away',
+       'HOME_TEAM_WINS'], parse_dates=["GAME_DATE_EST"]
                         , infer_datetime_format=True, index_col="GAME_ID")
     games = games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
     teams = pd.read_feather(TEAMS_PROCESSED_DS)
@@ -67,7 +71,8 @@ def get_balance_last_games(team_id: int, last_games: DataFrame):
     l = hl + vl
     return w, l
 
-def get_balance_previous_season_games(team_id: int, previous_season_games: DataFrame, is_visitor = False):
+
+def get_balance_previous_season_games(team_id: int, previous_season_games: DataFrame, is_visitor=False):
     if previous_season_games.empty:
         return 0, 0
     else:
@@ -79,15 +84,19 @@ def get_balance_previous_season_games(team_id: int, previous_season_games: DataF
             w = previous_season_games.HOME_TEAM_WINS.count() - l
         return w, l
 
+
 def get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: DataFrame, is_visit=False):
     prefix_key = "HT" if not is_visit else "VT"
     acc_data = {f"{prefix_key}": team_id, f"{prefix_key}_RANK": None, f"{prefix_key}_CLASS": None}
 
     previous_ht_games = season_team_games[(season_team_games.HOME_TEAM_ID == team_id)]
-    acc_data[f"{prefix_key}_HW"], acc_data[f"{prefix_key}_HL"] = get_balance_previous_season_games(team_id, previous_ht_games)
+    acc_data[f"{prefix_key}_HW"], acc_data[f"{prefix_key}_HL"] = get_balance_previous_season_games(team_id,
+                                                                                                   previous_ht_games)
 
     previous_vt_games = season_team_games[(season_team_games.VISITOR_TEAM_ID == team_id)]
-    acc_data[f"{prefix_key}_VW"], acc_data[f"{prefix_key}_VL"] =  get_balance_previous_season_games(team_id, previous_vt_games, True)
+    acc_data[f"{prefix_key}_VW"], acc_data[f"{prefix_key}_VL"] = get_balance_previous_season_games(team_id,
+                                                                                                   previous_vt_games,
+                                                                                                   True)
 
     last10_games = season_team_games.tail(10)
 
@@ -151,114 +160,6 @@ def get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: Dat
     return acc_data
 
 
-def get_team(row, season_games):
-    pass
-
-
-def get_rank(team_id: int, season_games: DataFrame, until_game=-1):
-    return None
-
-
-def get_class(team_id: int, season_games: DataFrame, until_game=-1):
-    return None
-
-
-def get_last10_w(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_last10_l(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_last10_matchup_w(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_last10_matchup_l(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_def_points(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_off_fg(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_def_fg(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_off_3p(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_def_3p(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_off_ft(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_def_ft(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_off_reb(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_def_reb(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_overall_off_points(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_def_points(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_off_fg(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_def_fg(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_off_3p(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_def_3p(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_off_ft(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_def_ft(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_off_reb(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
-def get_away_def_reb(team_id: int, season_games: DataFrame, until_game=-1):
-    pass
-
-
 def get_matchup_report(game, previous_games):
     game_processed = {}
     game_id = game.name
@@ -267,23 +168,25 @@ def get_matchup_report(game, previous_games):
     visitor_team_id = game.VISITOR_TEAM_ID
     season_year = game.SEASON
 
-    game_processed["ID"] = game_id
-    game_processed['DATE'] = game_date
+    game_processed["GAME_ID"] = game_id
+    #game_processed['SEASON'] = season_year
+
+    for key in games.keys():
+        game_processed[key] = game[key]
 
     query = ((season_games.HOME_TEAM_ID == home_team_id) | (season_games.VISITOR_TEAM_ID == home_team_id)) & \
             ((season_games.HOME_TEAM_ID == visitor_team_id) | (season_games.VISITOR_TEAM_ID == visitor_team_id))
     last10_matchup = previous_games[query].tail(10)
 
-    query = (season_games.SEASON == season_year) & ((season_games.HOME_TEAM_ID == home_team_id) |
-             (season_games.VISITOR_TEAM_ID == home_team_id
-              ))
+    query = ((season_games.HOME_TEAM_ID == home_team_id) |
+                                                    (season_games.VISITOR_TEAM_ID == home_team_id
+                                                     ))
     home_team_season_games = previous_games[query]
 
     home_team_data = get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
                                   last10_matchup=last10_matchup)
 
-    query = (season_games.SEASON == season_year) & \
-            ((season_games.HOME_TEAM_ID == visitor_team_id) |
+    query = ((season_games.HOME_TEAM_ID == visitor_team_id) |
              (season_games.VISITOR_TEAM_ID == visitor_team_id)
              )
     visitor_team_season_games = previous_games[query]
