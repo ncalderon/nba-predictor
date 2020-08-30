@@ -1,4 +1,4 @@
-import pandas as pd
+#!/usr/bin/env python
 
 def process():
     pass

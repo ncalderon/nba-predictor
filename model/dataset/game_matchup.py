@@ -14,18 +14,7 @@ GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
 GAMES_PROCESSED_DS_CSV = f"{DATA_PATH}/games.processed.csv"
 
 
-def change_path():
-    global SEASONS_PROCESSED_DS, TEAMS_DS, TEAMS_PROCESSED_DS, GAMES_DS, GAMES_PROCESSED_DS
-    SEASONS_PROCESSED_DS = f"{DATA_PATH}/seasons.processed.feather"
-
-    TEAMS_DS = f"{DATA_PATH}/teams.processed.feather"
-    TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
-
-    GAMES_DS = f"{DATA_PATH}/games.csv"
-    GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
-
-
-def load_datasets():
+def __load_datasets():
     global games, season_games, teams, seasons
     teams = pd.read_feather(TEAMS_PROCESSED_DS)
     games = pd.read_csv(GAMES_DS,
@@ -177,7 +166,7 @@ def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: D
     return acc_data
 
 
-def __get_matchup_report(game, previous_games):
+def __get_game_matchup(game, previous_games):
     game_processed = {}
     game_id = game.name
     game_date = game.GAME_DATE_EST
@@ -191,20 +180,20 @@ def __get_matchup_report(game, previous_games):
     for key in games.keys():
         game_processed[key] = game[key]
 
-    query = ((season_games.HOME_TEAM_ID == home_team_id) | (season_games.VISITOR_TEAM_ID == home_team_id)) & \
-            ((season_games.HOME_TEAM_ID == visitor_team_id) | (season_games.VISITOR_TEAM_ID == visitor_team_id))
+    query = ((previous_games.HOME_TEAM_ID == home_team_id) | (previous_games.VISITOR_TEAM_ID == home_team_id)) & \
+            ((previous_games.HOME_TEAM_ID == visitor_team_id) | (previous_games.VISITOR_TEAM_ID == visitor_team_id))
     last10_matchup = previous_games[query].tail(10)
 
-    query = ((season_games.HOME_TEAM_ID == home_team_id) |
-             (season_games.VISITOR_TEAM_ID == home_team_id
+    query = ((previous_games.HOME_TEAM_ID == home_team_id) |
+             (previous_games.VISITOR_TEAM_ID == home_team_id
               ))
     home_team_season_games = previous_games[query]
 
     home_team_data = __get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
                                     last10_matchup=last10_matchup)
 
-    query = ((season_games.HOME_TEAM_ID == visitor_team_id) |
-             (season_games.VISITOR_TEAM_ID == visitor_team_id)
+    query = ((previous_games.HOME_TEAM_ID == visitor_team_id) |
+             (previous_games.VISITOR_TEAM_ID == visitor_team_id)
              )
     visitor_team_season_games = previous_games[query]
 
@@ -291,26 +280,39 @@ def __change_column_order(games_matchup_report_df):
     ]]
 
 
-def __get_games_matchup_report(season_games: DataFrame, until_season: int = 2015):
+def __get_games_matchup(season_games: DataFrame):
     print(f"Season games: {len(season_games)}")
     games_matchup = []
-    for i in tqdm(reversed(range(len(season_games) - 1))):
-        row = season_games.iloc[i, :]
-        if row.SEASON == until_season:
-            break
-        print(f"Game: {i}, {row.name}")
-        previous_games = season_games[:i]
-        games_matchup.append(__get_matchup_report(row, previous_games))
+
+    with tqdm(total=len(season_games)) as pbar:
+        for i in reversed(range(len(season_games) - 1)):
+            row = season_games.iloc[i, :]
+            previous_games = season_games[:i]
+            try:
+                games_matchup.append(__get_game_matchup(row, previous_games))
+            except:
+                break;
+                print(f"Game: {i}, {row.name}")
+            pbar.update(1)
+        pbar.update(1)
     return games_matchup
 
 
-if __name__ == "__main__":
-    DATA_PATH = "../data"
-    change_path()
-    load_datasets()
+def create_matchup_games_dataset():
+    print("Create matchup games dataset from current one. ")
+    print("Load datasets: teams, seasons, ranking")
+    __load_datasets()
+    print("Processing...")
     games_matchup_report_df: DataFrame = pd.DataFrame(
-        __get_games_matchup_report(season_games=season_games, until_season=2015))
+        __get_games_matchup(
+            season_games=season_games[season_games.SEASON >= 2015]
+        )
+    )
     games_matchup_report_df = __change_column_order(games_matchup_report_df)
     games_matchup_report_df.to_feather(GAMES_PROCESSED_DS)
     games_matchup_report_df.to_csv(GAMES_PROCESSED_DS_CSV)
     print("Process done")
+
+
+if __name__ == '__main__':
+    create_matchup_games_dataset()
