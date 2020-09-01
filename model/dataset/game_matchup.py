@@ -110,7 +110,7 @@ def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: D
     team_rank = today_rankings[today_rankings.TEAM_ID == team_id].index[0]
     acc_data = {f"{prefix_key}": team_id,
                 f"{prefix_key}_RANK": team_rank
-                , f"{prefix_key}_CLASS": 2 if team_rank >= 20 else 1 if (team_rank >= 10) else 0
+        , f"{prefix_key}_CLASS": 2 if team_rank >= 20 else 1 if (team_rank >= 10) else 0
                 }
 
     previous_ht_games = season_team_games[(season_team_games.HOME_TEAM_ID == team_id)]
@@ -319,20 +319,25 @@ def __get_games_matchup(season_games: DataFrame):
     return games_matchup
 
 
-def create_matchup_games_dataset(start: int = 2016, end: int = 2018):
-    print("Create matchup games dataset from current one. ")
+def create_dataframe(start: int = 2016, end: int = 2018):
     print("Load datasets: teams, seasons, ranking")
     __load_datasets()
     print("Processing...")
     query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))
-    games_matchup_report_df: DataFrame = pd.DataFrame(
+    df: DataFrame = pd.DataFrame(
         __get_games_matchup(
             season_games=season_games[query]
         )
     )
-    games_matchup_report_df = __change_column_order(games_matchup_report_df)
-    games_matchup_report_df.to_feather(GAMES_PROCESSED_DS)
-    games_matchup_report_df.to_csv(GAMES_PROCESSED_DS_CSV)
+    df = __change_column_order(df)
+    return df
+
+
+def create_matchup_games_dataset(start: int = 2016, end: int = 2018):
+    print("Create matchup games dataset from current one. ")
+    df = create_dataframe(start, end)
+    df.to_feather(GAMES_PROCESSED_DS)
+    df.to_csv(GAMES_PROCESSED_DS_CSV)
     print("Process done")
 
 

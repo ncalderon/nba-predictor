@@ -3,6 +3,7 @@ import pandas as pd
 import model.dataset.game_matchup as games_matchup_d
 import model.dataset.seasons as seasons_d
 import model.dataset.teams as teams_d
+from datetime import datetime
 
 DATA_PATH = 'data'
 
@@ -43,3 +44,8 @@ def load_df():
     games_matchup = games_matchup.set_index(["GAME_ID"])
     games_matchup = games_matchup.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
     return games, teams, seasons, rankings, games_matchup
+
+
+def get_n_season_games_matchup_df(season_qty):
+    year = datetime.now().year - season_qty
+    games_matchup_d.create_dataframe(start=year, end=year)
