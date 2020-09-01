@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 from pandas import DataFrame
 from tqdm import tqdm
@@ -9,13 +11,17 @@ SEASONS_PROCESSED_DS = f"{DATA_PATH}/seasons.processed.feather"
 TEAMS_DS = f"{DATA_PATH}/teams.processed.feather"
 TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
 
+RANKING_DS = f"{DATA_PATH}/ranking.csv"
+RANKING_PROCESSED_DS = f"{DATA_PATH}/ranking.processed.feather"
+
 GAMES_DS = f"{DATA_PATH}/games.csv"
+
 GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
 GAMES_PROCESSED_DS_CSV = f"{DATA_PATH}/games.processed.csv"
 
 
 def __load_datasets():
-    global games, season_games, teams, seasons
+    global games, season_games, teams, seasons, rankings
     teams = pd.read_feather(TEAMS_PROCESSED_DS)
     games = pd.read_csv(GAMES_DS,
                         usecols=["GAME_ID", 'GAME_DATE_EST', 'GAME_STATUS_TEXT', 'HOME_TEAM_ID', 'VISITOR_TEAM_ID',
@@ -26,6 +32,13 @@ def __load_datasets():
                         , infer_datetime_format=True, index_col="GAME_ID")
     games = games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
     games = __games_with_nickname_column()
+
+    rankings = pd.read_csv(RANKING_DS, parse_dates=["STANDINGSDATE"],
+                           usecols=['TEAM_ID', 'LEAGUE_ID', 'SEASON_ID', 'STANDINGSDATE', 'CONFERENCE',
+                                    'TEAM', 'G', 'W', 'L', 'W_PCT', 'HOME_RECORD', 'ROAD_RECORD'],
+                           infer_datetime_format=True,
+                           index_col=["STANDINGSDATE"])
+    rankings.sort_index(inplace=True)
 
     seasons = pd.read_feather(SEASONS_PROCESSED_DS)
     season_games = __get_season_games(games, seasons)
@@ -91,9 +104,14 @@ def __get_balance_previous_season_games(team_id: int, previous_season_games: Dat
         return w, l
 
 
-def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: DataFrame, is_visit=False):
+def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: DataFrame, today_rankings: DataFrame,
+                   is_visit=False):
     prefix_key = "HT" if not is_visit else "VT"
-    acc_data = {f"{prefix_key}": team_id, f"{prefix_key}_RANK": None, f"{prefix_key}_CLASS": None}
+    team_rank = today_rankings[today_rankings.TEAM_ID == team_id].index[0]
+    acc_data = {f"{prefix_key}": team_id,
+                f"{prefix_key}_RANK": team_rank
+                , f"{prefix_key}_CLASS": 2 if team_rank >= 20 else 1 if (team_rank >= 10) else 0
+                }
 
     previous_ht_games = season_team_games[(season_team_games.HOME_TEAM_ID == team_id)]
     acc_data[f"{prefix_key}_HW"], acc_data[f"{prefix_key}_HL"] = __get_balance_previous_season_games(team_id,
@@ -174,6 +192,8 @@ def __get_game_matchup(game, previous_games):
     visitor_team_id = game.VISITOR_TEAM_ID
     season_year = game.SEASON
 
+    today_ranking_df = rankings.loc[rankings.index == game_date].sort_values("W_PCT")
+    today_ranking_df.reset_index(inplace=True)
     game_processed["GAME_ID"] = game_id
     # game_processed['SEASON'] = season_year
 
@@ -190,7 +210,7 @@ def __get_game_matchup(game, previous_games):
     home_team_season_games = previous_games[query]
 
     home_team_data = __get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
-                                    last10_matchup=last10_matchup)
+                                    last10_matchup=last10_matchup, today_rankings=today_ranking_df)
 
     query = ((previous_games.HOME_TEAM_ID == visitor_team_id) |
              (previous_games.VISITOR_TEAM_ID == visitor_team_id)
@@ -198,7 +218,7 @@ def __get_game_matchup(game, previous_games):
     visitor_team_season_games = previous_games[query]
 
     visitor_team_data = __get_acc_data(team_id=visitor_team_id, season_team_games=visitor_team_season_games,
-                                       last10_matchup=last10_matchup, is_visit=True)
+                                       last10_matchup=last10_matchup, today_rankings=today_ranking_df, is_visit=True)
 
     game_processed = {**home_team_data, **visitor_team_data, **game_processed}
     return game_processed
@@ -291,21 +311,23 @@ def __get_games_matchup(season_games: DataFrame):
             try:
                 games_matchup.append(__get_game_matchup(row, previous_games))
             except:
-                break;
                 print(f"Game: {i}, {row.name}")
+                print("Unexpected error:", sys.exc_info()[0])
+                raise
             pbar.update(1)
         pbar.update(1)
     return games_matchup
 
 
-def create_matchup_games_dataset():
+def create_matchup_games_dataset(start: int = 2016, end: int = 2018):
     print("Create matchup games dataset from current one. ")
     print("Load datasets: teams, seasons, ranking")
     __load_datasets()
     print("Processing...")
+    query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))
     games_matchup_report_df: DataFrame = pd.DataFrame(
         __get_games_matchup(
-            season_games=season_games[season_games.SEASON >= 2015]
+            season_games=season_games[query]
         )
     )
     games_matchup_report_df = __change_column_order(games_matchup_report_df)
