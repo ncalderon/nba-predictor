@@ -20,7 +20,7 @@ GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
 GAMES_PROCESSED_DS_CSV = f"{DATA_PATH}/games.processed.csv"
 
 
-def __load_datasets():
+def load_datasets():
     global games, season_games, teams, seasons, rankings
     teams = pd.read_feather(TEAMS_PROCESSED_DS)
     games = pd.read_csv(GAMES_DS,
@@ -31,7 +31,7 @@ def __load_datasets():
                                  'HOME_TEAM_WINS'], parse_dates=["GAME_DATE_EST"]
                         , infer_datetime_format=True, index_col="GAME_ID")
     games = games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
-    games = __games_with_nickname_column()
+    games = __games_with_nickname_column(games)
 
     rankings = pd.read_csv(RANKING_DS, parse_dates=["STANDINGSDATE"],
                            usecols=['TEAM_ID', 'LEAGUE_ID', 'SEASON_ID', 'STANDINGSDATE', 'CONFERENCE',
@@ -41,11 +41,12 @@ def __load_datasets():
     rankings.sort_index(inplace=True)
 
     seasons = pd.read_feather(SEASONS_PROCESSED_DS)
-    season_games = __get_season_games(games, seasons)
+    season_games = get_season_games(games, seasons)
+    return games, season_games, teams, seasons, rankings
 
 
-def __games_with_nickname_column():
-    global teams, games
+def __games_with_nickname_column(games):
+    global teams
     games_df = games.reset_index()
     teams_df = teams.drop(columns=["NICKNAME", "CITY"])
     result_df = games_df.merge(teams_df, left_on='HOME_TEAM_ID', right_on='TEAM_ID', suffixes=['_games', '_teams'])
@@ -59,7 +60,7 @@ def __games_with_nickname_column():
     return result_df
 
 
-def __get_season_games(games, seasons):
+def get_season_games(games, seasons):
     row = seasons.iloc[0]
     season_games = games[(games.SEASON == row.SEASON) & \
                          (games.GAME_DATE_EST >= row.SEASON_START) & \
@@ -305,7 +306,7 @@ def __get_games_matchup(season_games: DataFrame):
     games_matchup = []
 
     with tqdm(total=len(season_games)) as pbar:
-        for i in reversed(range(len(season_games) - 1)):
+        for i in reversed(range(len(season_games))):
             row = season_games.iloc[i, :]
             previous_games = season_games[:i]
             try:
@@ -315,13 +316,12 @@ def __get_games_matchup(season_games: DataFrame):
                 print("Unexpected error:", sys.exc_info()[0])
                 raise
             pbar.update(1)
-        pbar.update(1)
     return games_matchup
 
 
 def create_dataframe(start: int = 2016, end: int = 2018):
     print("Load datasets: teams, seasons, ranking")
-    __load_datasets()
+    load_datasets()
     print("Processing...")
     query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))
     df: DataFrame = pd.DataFrame(
