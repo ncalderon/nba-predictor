@@ -256,11 +256,12 @@ def feature_scaling():
 def model_logistic_regression():
     global log_clf
     from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import cross_val_score
-    log_clf = LogisticRegression(solver="lbfgs")
-    log_clf.fit(X_train, y_train)
-    score = cross_val_score(log_clf, X=X_train, y=y_train, cv=3)
-    print(score.mean())
+    #from sklearn.model_selection import cross_val_score
+    log_clf = LogisticRegression(solver="lbfgs", max_iter=1000)
+    log_clf.fit(X_train, y_train.ravel())
+    #print("test")
+    #score = cross_val_score(log_clf, X=X_train, y=y_train, cv=3)
+    #print(score.mean())
 
 
 def print_precission_logistic_regression():
@@ -269,4 +270,4 @@ def print_precission_logistic_regression():
 
     print("Precision: {:.2f}%".format(100 * precision_score(y_test, y_pred)))
     print("Recall: {:.2f}%".format(100 * recall_score(y_test, y_pred)))
-    print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
+    #print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
