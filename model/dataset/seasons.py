@@ -9,7 +9,7 @@ URL = "https://en.wikipedia.org/wiki/"
 DATA_PATH = 'data'
 SEASONS_FILE = f"{DATA_PATH}/seasons.csv"
 SEASONS_PROCESSED_FILE = f"{DATA_PATH}/seasons.processed.feather"
-START_SEASON = 2010
+START_SEASON = 2002
 END_SEASON = datetime.now().year - 1
 
 

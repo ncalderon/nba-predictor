@@ -16,8 +16,8 @@ RANKING_PROCESSED_DS = f"{DATA_PATH}/ranking.processed.feather"
 
 GAMES_DS = f"{DATA_PATH}/games.csv"
 
-GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
-GAMES_PROCESSED_DS_CSV = f"{DATA_PATH}/games.processed.csv"
+GAMES_MATCHUP_DS = f"{DATA_PATH}/games_machup.feather"
+GAMES_MATCHUP_DS_CSV = f"{DATA_PATH}/games_machup.processed.csv"
 
 
 def load_datasets():
@@ -336,10 +336,10 @@ def create_dataframe(start: int = 2016, end: int = 2018):
 def create_matchup_games_dataset(start: int = 2016, end: int = 2018):
     print("Create matchup games dataset from current one. ")
     df = create_dataframe(start, end)
-    df.to_feather(GAMES_PROCESSED_DS)
-    df.to_csv(GAMES_PROCESSED_DS_CSV)
+    df.to_feather(GAMES_MATCHUP_DS)
+    df.to_csv(GAMES_MATCHUP_DS_CSV)
     print("Process done")
 
 
 if __name__ == '__main__':
-    create_matchup_games_dataset()
+    create_matchup_games_dataset(start=2000, end=2018)

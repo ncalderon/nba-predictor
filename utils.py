@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from datetime import datetime
 
-import numpy as  np
+import numpy as np
 import pandas as pd
 
 import model.dataset.game_matchup as games_matchup_d
@@ -176,27 +176,6 @@ def load_df():
     return games, season_games, teams, seasons, rankings, games_matchup
 
 
-def get_n_season_games_matchup_df(season_qty):
-    end = datetime.now().year - 1
-    start = end - season_qty
-    return games_matchup_d.create_dataframe(start=start, end=end)
-
-
-def generate_experiment_datasets():
-    for i in range(1, 6):
-        df = get_n_season_games_matchup_df(i)
-        df.to_feather(f"{DATA_PATH}/games_matchups_0{i}.processed.feather")
-
-
-def load_experiment_datasets():
-    global df1, df2, df3, df4, df5
-    result = [(load_experiment_dataset(f"{DATA_PATH}/games_matchup_0{1}.processed.feather"))]
-    for i in range(2, 6):
-        result.append(load_experiment_dataset(f"{DATA_PATH}/games_matchup_0{i}.processed.feather"))
-    df1, df2, df3, df4, df5 = result
-    return df1, df2, df3, df4, df5
-
-
 def load_experiment_dataset(ds_path):
     df = pd.read_feather(ds_path)
     df.set_index(["GAME_DATE_EST"], inplace=True)
@@ -222,11 +201,11 @@ def do_experiments(experiments=[do_logistic_regression]):
     for idx, df in enumerate(dataframes):
         for i, experiment in enumerate(experiments):
             print(f"Experiment: {experiment.__name__}")
-            do_experiment(df, f"{idx+1}", experiment)
+            do_experiment(df, f"{idx + 1}", experiment)
 
 
 if __name__ == '__main__':
-    load_experiment_datasets()
+    pass
 
 
 def X_y_values(df):
@@ -245,6 +224,7 @@ def train_test_split(train_size=0.75):
     return X_train, X_test, y_train, y_test
 
 
+
 def feature_scaling():
     from sklearn.preprocessing import StandardScaler
     sc = StandardScaler()
@@ -256,12 +236,12 @@ def feature_scaling():
 def model_logistic_regression():
     global log_clf
     from sklearn.linear_model import LogisticRegression
-    #from sklearn.model_selection import cross_val_score
+    # from sklearn.model_selection import cross_val_score
     log_clf = LogisticRegression(solver="lbfgs", max_iter=1000)
     log_clf.fit(X_train, y_train.ravel())
-    #print("test")
-    #score = cross_val_score(log_clf, X=X_train, y=y_train, cv=3)
-    #print(score.mean())
+    # print("test")
+    # score = cross_val_score(log_clf, X=X_train, y=y_train, cv=3)
+    # print(score.mean())
 
 
 def print_precission_logistic_regression():
@@ -270,4 +250,4 @@ def print_precission_logistic_regression():
 
     print("Precision: {:.2f}%".format(100 * precision_score(y_test, y_pred)))
     print("Recall: {:.2f}%".format(100 * recall_score(y_test, y_pred)))
-    #print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
+    # print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
