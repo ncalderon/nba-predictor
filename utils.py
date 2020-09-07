@@ -168,8 +168,9 @@ y_columns = [
 
 
 def load_df():
+    global df
     games, season_games, teams, seasons, rankings = games_matchup_d.load_datasets()
-
+    df = season_games
     games_matchup = pd.read_feather(GAMES_PROCESSED_DS)
     games_matchup = games_matchup.set_index(["GAME_ID"])
     games_matchup = games_matchup.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
@@ -183,8 +184,7 @@ def load_experiment_dataset(ds_path):
     return df
 
 
-def do_experiment(df, dataset_name, experiment):
-    print(f"Running experiment for dataset: {dataset_name}")
+def do_experiment(df, experiment):
     X_y_values(df)
     train_test_split()
     feature_scaling()
@@ -197,11 +197,9 @@ def do_logistic_regression():
 
 
 def do_experiments(experiments=[do_logistic_regression]):
-    dataframes = [df1, df2, df3, df4, df5]
-    for idx, df in enumerate(dataframes):
-        for i, experiment in enumerate(experiments):
-            print(f"Experiment: {experiment.__name__}")
-            do_experiment(df, f"{idx + 1}", experiment)
+    for i, experiment in enumerate(experiments):
+        print(f"Experiment: {experiment.__name__}")
+        do_experiment(df, f"{idx + 1}", experiment)
 
 
 if __name__ == '__main__':
@@ -222,6 +220,33 @@ def train_test_split(train_size=0.75):
                                        y[0:train_size_qty], \
                                        y[train_size_qty:len(X)]
     return X_train, X_test, y_train, y_test
+
+
+def time_series_train_test_split():
+    fromIndex, toIndex, fromIndex, testToIndex = 0, 0, 0, 0
+
+    for season in df.SEASON.unique()[:-1]:
+        n_games_season = len(df[df.SEASON == season])
+        n_games_next_season = len(df[df.SEASON == season + 1])
+
+        toIndex = fromIndex + n_games_season
+        testFromIndex = toIndex
+        testToIndex = testFromIndex + int(n_games_next_season * 0.25)
+
+        yield np.arange(fromIndex, toIndex, dtype=int), np.arange(testFromIndex, testToIndex, dtype=int)
+
+        for train_size in [0.50, 0.75]:
+            toIndex = testToIndex
+            testFromIndex = toIndex
+            testToIndex = testFromIndex + (n_games_next_season - int(n_games_next_season * train_size))
+            yield np.arange(fromIndex, toIndex, dtype=int), np.arange(testFromIndex, testToIndex, dtype=int)
+
+        toIndex = testToIndex
+        testFromIndex = toIndex
+        testToIndex = testFromIndex + n_games_next_season
+        yield np.arange(fromIndex, toIndex, dtype=int), np.arange(testFromIndex, testToIndex, dtype=int)
+
+        fromIndex += n_games_season
 
 
 
