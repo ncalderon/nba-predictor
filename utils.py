@@ -1,8 +1,12 @@
 #!/usr/bin/env python
-from datetime import datetime
+import pickle
 
 import numpy as np
 import pandas as pd
+from pandas import DataFrame
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
 
 import model.dataset.game_matchup as games_matchup_d
 
@@ -168,9 +172,7 @@ y_columns = [
 
 
 def load_df():
-    global df
     games, season_games, teams, seasons, rankings = games_matchup_d.load_datasets()
-    df = season_games
     games_matchup = pd.read_feather(GAMES_PROCESSED_DS)
     games_matchup = games_matchup.set_index(["GAME_ID"])
     games_matchup = games_matchup.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
@@ -196,16 +198,6 @@ def do_logistic_regression():
     print_precission_logistic_regression()
 
 
-def do_experiments(experiments=[do_logistic_regression]):
-    for i, experiment in enumerate(experiments):
-        print(f"Experiment: {experiment.__name__}")
-        do_experiment(df, f"{idx + 1}", experiment)
-
-
-if __name__ == '__main__':
-    pass
-
-
 def X_y_values(df):
     global X, y
     X = df.loc[:, X_columns].values
@@ -222,32 +214,102 @@ def train_test_split(train_size=0.75):
     return X_train, X_test, y_train, y_test
 
 
-def time_series_train_test_split():
-    fromIndex, toIndex, fromIndex, testToIndex = 0, 0, 0, 0
+def train_test_series_split(df, test_length, split_by_quarter=False):
+    train_start_idx = df.index[0]
+    train_end_idx = df.index[-test_length] + 1
+    test_idx_from = train_end_idx
+    test_start_idx = train_end_idx
+    if (split_by_quarter):
+        test_end_idx = test_idx_from + test_length
+        return X[train_start_idx:train_end_idx], \
+               y[train_start_idx:train_end_idx], \
+               X[test_start_idx:test_end_idx], \
+               y[test_start_idx:test_end_idx]
 
-    for season in df.SEASON.unique()[:-1]:
-        n_games_season = len(df[df.SEASON == season])
-        n_games_next_season = len(df[df.SEASON == season + 1])
+    test_end_idx = test_idx_from + int(test_length * 0.25)
 
-        toIndex = fromIndex + n_games_season
-        testFromIndex = toIndex
-        testToIndex = testFromIndex + int(n_games_next_season * 0.25)
+    yield X[train_start_idx:train_end_idx], \
+          y[train_start_idx:train_end_idx], \
+          X[test_start_idx:test_end_idx], \
+          y[test_start_idx:test_end_idx]
 
-        yield np.arange(fromIndex, toIndex, dtype=int), np.arange(testFromIndex, testToIndex, dtype=int)
+    for test_size in [0.50, 0.75, 1]:
+        train_end_idx = test_end_idx
+        test_start_idx = train_end_idx
+        test_end_idx = test_idx_from + int(test_length * test_size)
+        yield X[train_start_idx:train_end_idx], \
+              y[train_start_idx:train_end_idx], \
+              X[test_start_idx:test_end_idx], \
+              y[test_start_idx:test_end_idx]
 
-        for train_size in [0.50, 0.75]:
-            toIndex = testToIndex
-            testFromIndex = toIndex
-            testToIndex = testFromIndex + (n_games_next_season - int(n_games_next_season * train_size))
-            yield np.arange(fromIndex, toIndex, dtype=int), np.arange(testFromIndex, testToIndex, dtype=int)
 
-        toIndex = testToIndex
-        testFromIndex = toIndex
-        testToIndex = testFromIndex + n_games_next_season
-        yield np.arange(fromIndex, toIndex, dtype=int), np.arange(testFromIndex, testToIndex, dtype=int)
+def ds_split(df, train_season_size=2):
+    seasons = df.SEASON.unique()[:-train_season_size]
+    for i in range(0, len(seasons)):
+        season = seasons[i]
+        current_df = df[df.SEASON.isin(seasons[i:train_season_size + 1 + i])]
+        test_length = len(df[df.SEASON == (season + train_season_size)])
+        yield f"{season}-{season + 1}", current_df, test_length
 
-        fromIndex += n_games_season
 
+def save_results(name, results):
+    experiments_file = open(f"data/{name}_experiment_results.pkl", "wb")
+    pickle.dump(results, experiments_file)
+    experiments_file.close()
+
+
+def do_experiments(name, models, df, train_season_size=2, split_by_quarter=False):
+    import collections
+    from sklearn.metrics import precision_score, balanced_accuracy_score
+    X_y_values(df)
+    df.reset_index(inplace=True)
+    #results = collections.defaultdict(lambda: collections.defaultdict(lambda: []))
+    results = {}
+    for name, model in models:
+        results[name] = {}
+        for name_ds, ds, test_length in ds_split(df, train_season_size=train_season_size):
+            for X_train, y_train, X_test, y_test in train_test_series_split(ds, test_length, split_by_quarter):
+                model.fit(X=X_train, y=y_train.ravel())
+                y_pred = model.predict(X_test)
+                result = {
+                    "balanced_accuracy_score": 100 * balanced_accuracy_score(y_test, y_pred),
+                    "precision": 100 * precision_score(y_test, y_pred),
+                    "recall": 100 * precision_score(y_test, y_pred)
+                }
+                if name_ds not in results[name]:
+                    results[name][name_ds] = []
+                results[name][name_ds].append(result)
+                results[name][name_ds].append(result)
+                results[name][name_ds].append(result)
+        print(f"model: {name}. Results: {results[name]}")
+        save_results(name, results)
+    print(results)
+    save_results(name, results)
+    return results
+
+
+def time_series_cv_split(df: DataFrame, train_size=1):
+    df = df.reset_index()
+    test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
+    seasons = df.SEASON.unique()[:-1]
+    for i in range(0, len(seasons)):
+        season = seasons[i]
+        current_df = df[df.SEASON.isin(seasons[i:train_size + i])]
+        n_games_next_season = len(df[df.SEASON == (season + train_size)])
+
+        train_start_idx = current_df.index[0]
+        train_end_idx = current_df.index[-1] + 1
+        test_idx_from = train_end_idx
+        test_start_idx = train_end_idx
+        test_end_idx = test_idx_from + int(n_games_next_season * 0.25)
+        yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx, dtype=int)
+
+        for test_size in [0.50, 0.75, 1]:
+            train_end_idx = test_end_idx
+            test_start_idx = train_end_idx
+            test_end_idx = test_idx_from + int(n_games_next_season * test_size)
+            yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
+                                                                                  dtype=int)
 
 
 def feature_scaling():
@@ -276,3 +338,28 @@ def print_precission_logistic_regression():
     print("Precision: {:.2f}%".format(100 * precision_score(y_test, y_pred)))
     print("Recall: {:.2f}%".format(100 * recall_score(y_test, y_pred)))
     # print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
+
+
+if __name__ == '__main__':
+    games, season_games, teams, seasons, rankings, games_matchup = load_df()
+    df = games_matchup
+    df = df[df.SEASON.isin(df.SEASON.unique()[-10:])]
+    models = [
+        # ('KNN', KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)),
+        # ('SVM', SVC(kernel='linear', random_state=0)),
+        # ('KSVM', SVC(kernel='rbf', random_state=0)),
+        ('NB', GaussianNB()),
+        ('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)),
+        ("RF", RandomForestClassifier(n_estimators=500,
+                                      max_features="sqrt",
+                                      max_depth=15,
+                                      n_jobs=-1,
+                                      random_state=0)),
+         #("GB", GradientBoostingClassifier(n_estimators=500,
+         #                                 max_depth=15,
+         #                                 max_features="sqrt",
+         #                                 random_state=0))
+    ]
+    do_experiments("2season_predict1", models, df=df)
+
+    do_experiments("2season_predict1", models, df=df)
