@@ -4,24 +4,12 @@ import pickle
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 
+import model.config as config
 import model.dataset.game_matchup as games_matchup_d
-
-DATA_PATH = 'data'
-
-SEASONS_PROCESSED_DS = f"{DATA_PATH}/seasons.processed.feather"
-
-TEAMS_DS = f"{DATA_PATH}/teams.csv"
-TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
-
-RANKING_DS = f"{DATA_PATH}/ranking.csv"
-RANKING_PROCESSED_DS = f"{DATA_PATH}/ranking.processed.feather"
-
-GAMES_DS = f"{DATA_PATH}/games.csv"
-GAMES_PROCESSED_DS = f"{DATA_PATH}/games.processed.feather"
 
 columns = [
     "GAME_DATE_EST",
@@ -173,10 +161,8 @@ y_columns = [
 
 def load_df():
     games, season_games, teams, seasons, rankings = games_matchup_d.load_datasets()
-    games_matchup = pd.read_feather(GAMES_PROCESSED_DS)
-    games_matchup = games_matchup.set_index(["GAME_ID"])
-    games_matchup = games_matchup.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
-    return games, season_games, teams, seasons, rankings, games_matchup
+    games_machup = games_matchup_d.load_game_matchup_dataset()
+    return games, season_games, teams, seasons, rankings, games_machup
 
 
 def load_experiment_dataset(ds_path):
@@ -253,17 +239,17 @@ def ds_split(df, train_season_size=2):
 
 
 def save_results(name, results):
-    experiments_file = open(f"data/{name}_experiment_results.pkl", "wb")
+    experiments_file = open(f"{config.DATA_PATH}{name}_experiment_results.pkl", "wb")
     pickle.dump(results, experiments_file)
     experiments_file.close()
 
 
-def do_experiments(name, models, df, train_season_size=2, split_by_quarter=False):
-    import collections
+def do_experiments(exp_name, models, df, train_season_size=2, split_by_quarter=False):
+    print(f"Start processing experiment: {exp_name}...")
     from sklearn.metrics import precision_score, balanced_accuracy_score
     X_y_values(df)
     df.reset_index(inplace=True)
-    #results = collections.defaultdict(lambda: collections.defaultdict(lambda: []))
+    # results = collections.defaultdict(lambda: collections.defaultdict(lambda: []))
     results = {}
     for name, model in models:
         results[name] = {}
@@ -284,7 +270,9 @@ def do_experiments(name, models, df, train_season_size=2, split_by_quarter=False
         print(f"model: {name}. Results: {results[name]}")
         save_results(name, results)
     print(results)
-    save_results(name, results)
+    print(f"Saving results...")
+    save_results(exp_name, results)
+    print(f"Done.")
     return results
 
 
@@ -340,7 +328,7 @@ def print_precission_logistic_regression():
     # print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1))
 
 
-if __name__ == '__main__':
+def execute_experiments():
     games, season_games, teams, seasons, rankings, games_matchup = load_df()
     df = games_matchup
     df = df[df.SEASON.isin(df.SEASON.unique()[-10:])]
@@ -355,11 +343,23 @@ if __name__ == '__main__':
                                       max_depth=15,
                                       n_jobs=-1,
                                       random_state=0)),
-         #("GB", GradientBoostingClassifier(n_estimators=500,
-         #                                 max_depth=15,
-         #                                 max_features="sqrt",
-         #                                 random_state=0))
+        # ("GB", GradientBoostingClassifier(n_estimators=500,
+        #                                 max_depth=15,
+        #                                 max_features="sqrt",
+        #                                 random_state=0))
     ]
     do_experiments("2season_predict1", models, df=df)
 
-    do_experiments("2season_predict1", models, df=df)
+    do_experiments("1season_and_q_predict_q", models, df=df, train_season_size=1, split_by_quarter=True)
+
+
+def load_experiment_results():
+    season2_predict1 = open("data/2season_predict1_experiment_results.pkl", 'rb')
+    season2_predict1_results = pickle.load(season2_predict1)
+    season1_and_q_predict_q = open("data/1season_and_q_predict_q_experiment_results.pkl", 'rb')
+    season1_and_q_predict_q_results = pickle.load(season1_and_q_predict_q)
+    return season2_predict1_results, season1_and_q_predict_q_results
+
+
+if __name__ == '__main__':
+    season2_predict1_results, season1_and_q_predict_q_results = load_experiment_results()

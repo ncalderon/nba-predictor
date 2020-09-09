@@ -4,43 +4,30 @@ import pandas as pd
 from pandas import DataFrame
 from tqdm import tqdm
 
-DATA_PATH = 'data'
-
-SEASONS_PROCESSED_DS = f"{DATA_PATH}/seasons.processed.feather"
-
-TEAMS_DS = f"{DATA_PATH}/teams.processed.feather"
-TEAMS_PROCESSED_DS = f"{DATA_PATH}/teams.processed.feather"
-
-RANKING_DS = f"{DATA_PATH}/ranking.csv"
-RANKING_PROCESSED_DS = f"{DATA_PATH}/ranking.processed.feather"
-
-GAMES_DS = f"{DATA_PATH}/games.csv"
-
-GAMES_MATCHUP_DS = f"{DATA_PATH}/games_machup.feather"
-GAMES_MATCHUP_DS_CSV = f"{DATA_PATH}/games_machup.processed.csv"
+import model.config as config
 
 
 def load_datasets():
     global games, season_games, teams, seasons, rankings
-    teams = pd.read_feather(TEAMS_PROCESSED_DS)
-    games = pd.read_csv(GAMES_DS,
-                        usecols=["GAME_ID", 'GAME_DATE_EST', 'GAME_STATUS_TEXT', 'HOME_TEAM_ID', 'VISITOR_TEAM_ID',
+    teams = pd.read_feather(config.TEAMS_PROCESSED_DS)
+    games = pd.read_csv(config.GAMES_DS,
+                        usecols=["GAME_ID", 'GAME_DATE_EST', 'HOME_TEAM_ID', 'VISITOR_TEAM_ID',
                                  'SEASON', 'PTS_home', 'FG_PCT_home', 'FT_PCT_home',
                                  'FG3_PCT_home', 'AST_home', 'REB_home', 'PTS_away',
                                  'FG_PCT_away', 'FT_PCT_away', 'FG3_PCT_away', 'AST_away', 'REB_away',
                                  'HOME_TEAM_WINS'], parse_dates=["GAME_DATE_EST"]
                         , infer_datetime_format=True, index_col="GAME_ID")
-    games = games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
+    games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'], inplace=True)
     games = __games_with_nickname_column(games)
 
-    rankings = pd.read_csv(RANKING_DS, parse_dates=["STANDINGSDATE"],
+    rankings = pd.read_csv(config.RANKING_DS, parse_dates=["STANDINGSDATE"],
                            usecols=['TEAM_ID', 'LEAGUE_ID', 'SEASON_ID', 'STANDINGSDATE', 'CONFERENCE',
                                     'TEAM', 'G', 'W', 'L', 'W_PCT', 'HOME_RECORD', 'ROAD_RECORD'],
                            infer_datetime_format=True,
                            index_col=["STANDINGSDATE"])
     rankings.sort_index(inplace=True)
 
-    seasons = pd.read_feather(SEASONS_PROCESSED_DS)
+    seasons = pd.read_feather(config.SEASONS_PROCESSED_DS)
     season_games = get_season_games(games, seasons)
     return games, season_games, teams, seasons, rankings
 
@@ -185,6 +172,18 @@ def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: D
     return acc_data
 
 
+def get_last_season_games(previous_games, season_year, home_team_id, visitor_team_id):
+    home_team_season_games = previous_games[previous_games.SEASON.isin([season_year - 1, season_year]) &
+                                            ((previous_games.HOME_TEAM_ID == home_team_id) |
+                                             (previous_games.VISITOR_TEAM_ID == home_team_id)
+                                             )]
+    visitor_team_season_games = previous_games[previous_games.SEASON.isin([season_year - 1, season_year]) &
+                                               ((previous_games.HOME_TEAM_ID == visitor_team_id) |
+                                                (previous_games.VISITOR_TEAM_ID == visitor_team_id)
+                                                )]
+    return home_team_season_games, visitor_team_season_games
+
+
 def __get_game_matchup(game, previous_games):
     game_processed = {}
     game_id = game.name
@@ -205,18 +204,24 @@ def __get_game_matchup(game, previous_games):
             ((previous_games.HOME_TEAM_ID == visitor_team_id) | (previous_games.VISITOR_TEAM_ID == visitor_team_id))
     last10_matchup = previous_games[query].tail(10)
 
-    query = ((previous_games.HOME_TEAM_ID == home_team_id) |
-             (previous_games.VISITOR_TEAM_ID == home_team_id
-              ))
+    query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == home_team_id) |
+                                                     (previous_games.VISITOR_TEAM_ID == home_team_id
+                                                      ))
     home_team_season_games = previous_games[query]
+    if not len(home_team_season_games) > 10:
+        home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
+                                                                                  home_team_id, visitor_team_id)
+    else:
+        query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == visitor_team_id) |
+                                                         (previous_games.VISITOR_TEAM_ID == visitor_team_id)
+                                                         )
+        visitor_team_season_games = previous_games[query]
+        if not len(visitor_team_season_games) > 10:
+            home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
+                                                                                      home_team_id, visitor_team_id)
 
     home_team_data = __get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
                                     last10_matchup=last10_matchup, today_rankings=today_ranking_df)
-
-    query = ((previous_games.HOME_TEAM_ID == visitor_team_id) |
-             (previous_games.VISITOR_TEAM_ID == visitor_team_id)
-             )
-    visitor_team_season_games = previous_games[query]
 
     visitor_team_data = __get_acc_data(team_id=visitor_team_id, season_team_games=visitor_team_season_games,
                                        last10_matchup=last10_matchup, today_rankings=today_ranking_df, is_visit=True)
@@ -233,7 +238,6 @@ def __change_column_order(games_matchup_report_df):
         "HOME_TEAM_ID",
         "VISITOR_TEAM_NAME",
         "VISITOR_TEAM_ID",
-        "GAME_STATUS_TEXT",
         "SEASON",
         "HT_RANK",
         "HT_CLASS",
@@ -304,9 +308,10 @@ def __change_column_order(games_matchup_report_df):
 def __get_games_matchup(season_games: DataFrame):
     print(f"Season games: {len(season_games)}")
     games_matchup = []
-
-    with tqdm(total=len(season_games)) as pbar:
-        for i in reversed(range(len(season_games))):
+    seasons = season_games.SEASON.unique()
+    idx_begin = len(season_games[season_games.SEASON == seasons[0]])
+    with tqdm(total=len(season_games) - idx_begin) as pbar:
+        for i in reversed(range(idx_begin, len(season_games))):
             row = season_games.iloc[i, :]
             previous_games = season_games[:i]
             try:
@@ -334,11 +339,18 @@ def create_dataframe(start: int = 2016, end: int = 2018):
 
 
 def create_matchup_games_dataset(start: int = 2016, end: int = 2018):
-    print("Create matchup games dataset from current one. ")
+    print("Create matchup games dataset. ")
     df = create_dataframe(start, end)
-    df.to_feather(GAMES_MATCHUP_DS)
-    df.to_csv(GAMES_MATCHUP_DS_CSV)
+    df.to_feather(config.GAMES_MATCHUP_DS)
+    df.to_csv(config.GAMES_MATCHUP_DS_CSV)
     print("Process done")
+
+
+def load_game_matchup_dataset():
+    games_matchup = pd.read_feather(config.GAMES_MATCHUP_DS)
+    games_matchup.set_index(["GAME_ID"], inplace=True)
+    games_matchup.sort_values(by=['GAME_DATE_EST', 'GAME_ID'], inplace=True)
+    return games_matchup
 
 
 if __name__ == '__main__':
