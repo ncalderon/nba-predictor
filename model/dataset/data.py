@@ -68,4 +68,4 @@ def __get_season_games(games, seasons):
 
 
 def get_season_games():
-    __get_season_games(load_games(), load_seasons)
+    return __get_season_games(load_games(), load_seasons())

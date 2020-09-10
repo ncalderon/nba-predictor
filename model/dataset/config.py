@@ -19,7 +19,6 @@ columns = [
     "HOME_TEAM_ID",
     "VISITOR_TEAM_NAME",
     "VISITOR_TEAM_ID",
-    "GAME_STATUS_TEXT",
     "SEASON",
     "HT_RANK",
     "HT_CLASS",

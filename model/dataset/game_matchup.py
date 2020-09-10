@@ -200,7 +200,7 @@ def __get_games_matchup(season_games: DataFrame):
 def __create_dataframe(start: int = 2016, end: int = 2018):
     print("Load datasets: teams, seasons, ranking")
     global season_games, rankings
-    rankings = data.load_rankins()
+    rankings = data.load_rankings()
     season_games = data.get_season_games()
     print("Processing...")
     query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))

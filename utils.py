@@ -9,6 +9,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 
 import model.dataset.config as config
+import model.config as model_config
 
 
 def load_experiment_dataset(ds_path):
@@ -32,8 +33,8 @@ def do_logistic_regression():
 
 def X_y_values(df):
     global X, y
-    X = df.loc[:, X_columns].values
-    y = df.loc[:, ["HOME_TEAM_WINS"]].values
+    X = df.loc[:, model_config.X_columns].values
+    y = df.loc[:, [model_config.y_columns[-1]]].values
 
 
 def train_test_split(train_size=0.75):
