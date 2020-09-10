@@ -49,11 +49,7 @@ X_columns = [
     "VT_AWAY_FG",
     "VT_AWAY_3P",
     "VT_AWAY_FT",
-    "VT_AWAY_REB",
-    "PTS_home",
-    "FG_PCT_home",
-    "FT_PCT_home",
-    "FG3_PCT_home"
+    "VT_AWAY_REB"
 ]
 
 y_columns = [

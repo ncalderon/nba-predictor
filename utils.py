@@ -7,7 +7,7 @@ from pandas import DataFrame
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
-
+import model.train as train
 import model.dataset.config as config
 import model.config as model_config
 
@@ -19,8 +19,7 @@ def load_experiment_dataset(ds_path):
     return df
 
 
-def do_experiment(df, experiment):
-    X_y_values(df)
+def do_experiment(experiment):
     train_test_split()
     feature_scaling()
     experiment()
@@ -29,12 +28,6 @@ def do_experiment(df, experiment):
 def do_logistic_regression():
     model_logistic_regression()
     print_precission_logistic_regression()
-
-
-def X_y_values(df):
-    global X, y
-    X = df.loc[:, model_config.X_columns].values
-    y = df.loc[:, [model_config.y_columns[-1]]].values
 
 
 def train_test_split(train_size=0.75):
@@ -94,7 +87,8 @@ def save_results(name, results):
 def do_experiments(exp_name, models, df, train_season_size=2, split_by_quarter=False):
     print(f"Start processing experiment: {exp_name}...")
     from sklearn.metrics import precision_score, balanced_accuracy_score
-    X_y_values(df)
+    global X, y
+    X, y = train.X_y_values(df=df, y_columns=model_config.y_columns[-1])
     df.reset_index(inplace=True)
     # results = collections.defaultdict(lambda: collections.defaultdict(lambda: []))
     results = {}

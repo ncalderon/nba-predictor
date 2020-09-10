@@ -14,6 +14,7 @@ GAMES_MATCHUP_DS = f"{DATA_PATH}/games_machup.feather"
 GAMES_MATCHUP_DS_CSV = f"{DATA_PATH}/games_machup.csv"
 
 columns = [
+    "GAME_ID",
     "GAME_DATE_EST",
     "HOME_TEAM_NAME",
     "HOME_TEAM_ID",
