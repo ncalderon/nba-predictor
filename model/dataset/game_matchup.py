@@ -1,67 +1,10 @@
 #!/usr/bin/env python
 import sys
-
+import model.dataset.config as config
 import pandas as pd
 from pandas import DataFrame
 from tqdm import tqdm
-
-import model.config as config
-
-
-def load_datasets():
-    global games, season_games, teams, seasons, rankings
-    teams = pd.read_feather(config.TEAMS_PROCESSED_DS)
-    games = pd.read_csv(config.GAMES_DS,
-                        usecols=["GAME_ID", 'GAME_DATE_EST', 'HOME_TEAM_ID', 'VISITOR_TEAM_ID',
-                                 'SEASON', 'PTS_home', 'FG_PCT_home', 'FT_PCT_home',
-                                 'FG3_PCT_home', 'AST_home', 'REB_home', 'PTS_away',
-                                 'FG_PCT_away', 'FT_PCT_away', 'FG3_PCT_away', 'AST_away', 'REB_away',
-                                 'HOME_TEAM_WINS'], parse_dates=["GAME_DATE_EST"]
-                        , infer_datetime_format=True, index_col="GAME_ID")
-    games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'], inplace=True)
-    games = __games_with_nickname_column(games)
-
-    rankings = pd.read_csv(config.RANKING_DS, parse_dates=["STANDINGSDATE"],
-                           usecols=['TEAM_ID', 'LEAGUE_ID', 'SEASON_ID', 'STANDINGSDATE', 'CONFERENCE',
-                                    'TEAM', 'G', 'W', 'L', 'W_PCT', 'HOME_RECORD', 'ROAD_RECORD'],
-                           infer_datetime_format=True,
-                           index_col=["STANDINGSDATE"])
-    rankings.sort_index(inplace=True)
-
-    seasons = pd.read_feather(config.SEASONS_PROCESSED_DS)
-    season_games = get_season_games(games, seasons)
-    return games, season_games, teams, seasons, rankings
-
-
-def __games_with_nickname_column(games):
-    global teams
-    games_df = games.reset_index()
-    teams_df = teams.drop(columns=["NICKNAME", "CITY"])
-    result_df = games_df.merge(teams_df, left_on='HOME_TEAM_ID', right_on='TEAM_ID', suffixes=['_games', '_teams'])
-    result_df = result_df.drop(columns=["TEAM_ID"])
-    result_df = result_df.rename(columns={"NAME": "HOME_TEAM_NAME"})
-    result_df = result_df.merge(teams_df, left_on='VISITOR_TEAM_ID', right_on='TEAM_ID', suffixes=['_games', '_teams'])
-    result_df = result_df.drop(columns=["TEAM_ID"])
-    result_df = result_df.rename(columns={"NAME": "VISITOR_TEAM_NAME"})
-    result_df = result_df.set_index("GAME_ID")
-    result_df = result_df.sort_values(by=['GAME_DATE_EST', 'GAME_ID'])
-    return result_df
-
-
-def get_season_games(games, seasons):
-    row = seasons.iloc[0]
-    season_games = games[(games.SEASON == row.SEASON) & \
-                         (games.GAME_DATE_EST >= row.SEASON_START) & \
-                         (games.GAME_DATE_EST <= row.SEASON_END)
-                         ]
-    for i in range(1, len(seasons)):
-        row = seasons.iloc[i]
-        temp = games[(games.SEASON == row.SEASON) & \
-                     (games.GAME_DATE_EST >= row.SEASON_START) & \
-                     (games.GAME_DATE_EST <= row.SEASON_END)
-                     ]
-        season_games = pd.concat([season_games, temp])
-    return season_games
+import data as data
 
 
 def __get_balance_last_games(team_id: int, last_games: DataFrame):
@@ -198,7 +141,7 @@ def __get_game_matchup(game, previous_games):
     game_processed["GAME_ID"] = game_id
     # game_processed['SEASON'] = season_year
 
-    for key in games.keys():
+    for key in game.keys():
         game_processed[key] = game[key]
 
     query = ((previous_games.HOME_TEAM_ID == home_team_id) | (previous_games.VISITOR_TEAM_ID == home_team_id)) & \
@@ -232,78 +175,7 @@ def __get_game_matchup(game, previous_games):
 
 
 def __change_column_order(games_matchup_report_df):
-    return games_matchup_report_df[[
-        "GAME_ID",
-        "GAME_DATE_EST",
-        "HOME_TEAM_NAME",
-        "HOME_TEAM_ID",
-        "VISITOR_TEAM_NAME",
-        "VISITOR_TEAM_ID",
-        "SEASON",
-        "HT_RANK",
-        "HT_CLASS",
-        "HT_HW",
-        "HT_HL",
-        "HT_VW",
-        "HT_VL",
-        "HT_LAST10_W",
-        "HT_LAST10_L",
-        "HT_LAST10_MATCHUP_W",
-        "HT_LAST10_MATCHUP_L",
-        "HT_OVERALL_OFF_POINTS",
-        "HT_OVERALL_DEF_POINTS",
-        "HT_OVERALL_OFF_FG",
-        "HT_OVERALL_DEF_FG",
-        "HT_OVERALL_OFF_3P",
-        "HT_OVERALL_DEF_3P",
-        "HT_OVERALL_OFF_FT",
-        "HT_OVERALL_DEF_FT",
-        "HT_OVERALL_OFF_REB",
-        "HT_OVERALL_DEF_REB",
-        "HT_AWAY_POINTS",
-        "HT_AWAY_FG",
-        "HT_AWAY_3P",
-        "HT_AWAY_FT",
-        "HT_AWAY_REB",
-        "VT_RANK",
-        "VT_CLASS",
-        "VT_HW",
-        "VT_HL",
-        "VT_VW",
-        "VT_VL",
-        "VT_LAST10_W",
-        "VT_LAST10_L",
-        "VT_LAST10_MATCHUP_W",
-        "VT_LAST10_MATCHUP_L",
-        "VT_OVERALL_OFF_POINTS",
-        "VT_OVERALL_DEF_POINTS",
-        "VT_OVERALL_OFF_FG",
-        "VT_OVERALL_DEF_FG",
-        "VT_OVERALL_OFF_3P",
-        "VT_OVERALL_DEF_3P",
-        "VT_OVERALL_OFF_FT",
-        "VT_OVERALL_DEF_FT",
-        "VT_OVERALL_OFF_REB",
-        "VT_OVERALL_DEF_REB",
-        "VT_AWAY_POINTS",
-        "VT_AWAY_FG",
-        "VT_AWAY_3P",
-        "VT_AWAY_FT",
-        "VT_AWAY_REB",
-        "PTS_home",
-        "FG_PCT_home",
-        "FT_PCT_home",
-        "FG3_PCT_home",
-        "AST_home",
-        "REB_home",
-        "PTS_away",
-        "FG_PCT_away",
-        "FT_PCT_away",
-        "FG3_PCT_away",
-        "AST_away",
-        "REB_away",
-        "HOME_TEAM_WINS"
-    ]]
+    return games_matchup_report_df[config.columns]
 
 
 def __get_games_matchup(season_games: DataFrame):
@@ -325,9 +197,11 @@ def __get_games_matchup(season_games: DataFrame):
     return games_matchup
 
 
-def create_dataframe(start: int = 2016, end: int = 2018):
+def __create_dataframe(start: int = 2016, end: int = 2018):
     print("Load datasets: teams, seasons, ranking")
-    load_datasets()
+    global season_games, rankings
+    rankings = data.load_rankins()
+    season_games = data.get_season_games()
     print("Processing...")
     query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))
     df: DataFrame = pd.DataFrame(
@@ -341,7 +215,7 @@ def create_dataframe(start: int = 2016, end: int = 2018):
 
 def create_matchup_games_dataset(start: int = 2016, end: int = 2018):
     print("Create matchup games dataset. ")
-    df = create_dataframe(start, end)
+    df = __create_dataframe(start, end)
     df.to_feather(config.GAMES_MATCHUP_DS)
     df.to_csv(config.GAMES_MATCHUP_DS_CSV)
     print("Process done")
