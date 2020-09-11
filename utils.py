@@ -134,7 +134,7 @@ def time_series_cv_split(df: DataFrame, train_size=1):
                                                                                   dtype=int)
 
 
-def feature_scaling():
+def feature_scaling(X_train, X_test):
     from sklearn.preprocessing import StandardScaler
     sc = StandardScaler()
     X_train[:, :] = sc.fit_transform(X_train[:, :])
