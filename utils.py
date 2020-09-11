@@ -12,13 +12,6 @@ import model.dataset.config as config
 import model.config as model_config
 
 
-def load_experiment_dataset(ds_path):
-    df = pd.read_feather(ds_path)
-    df.set_index(["GAME_DATE_EST"], inplace=True)
-    df.sort_index(inplace=True)
-    return df
-
-
 def do_experiment(experiment):
     train_test_split()
     feature_scaling()
@@ -200,4 +193,4 @@ def load_experiment_results():
 
 
 if __name__ == '__main__':
-    season2_predict1_results, season1_and_q_predict_q_results = load_experiment_results()
+    pass
