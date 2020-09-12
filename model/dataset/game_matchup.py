@@ -128,7 +128,46 @@ def get_last_season_games(previous_games, season_year, home_team_id, visitor_tea
     return home_team_season_games, visitor_team_season_games
 
 
-def __get_game_matchup(game, previous_games):
+def __filter_previous_games_legacy(previous_games, season_year, home_team_id, visitor_team_id):
+    query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == home_team_id) |
+                                                     (previous_games.VISITOR_TEAM_ID == home_team_id
+                                                      ))
+    home_team_season_games = previous_games[query]
+    if not len(home_team_season_games) > 10:
+        home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
+                                                                                  home_team_id, visitor_team_id)
+    else:
+        query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == visitor_team_id) |
+                                                         (previous_games.VISITOR_TEAM_ID == visitor_team_id)
+                                                         )
+        visitor_team_season_games = previous_games[query]
+        if not len(visitor_team_season_games) > 10:
+            home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
+                                                                                      home_team_id, visitor_team_id)
+    return home_team_season_games, visitor_team_season_games
+
+
+def __filter_previous_games(previous_games, season_year, home_team_id, visitor_team_id):
+    skip = True
+    query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == home_team_id) |
+                                                     (previous_games.VISITOR_TEAM_ID == home_team_id
+                                                      ))
+    home_team_season_games = previous_games[query]
+
+    if len(home_team_season_games) > 10:
+        skip = False
+
+    query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == visitor_team_id) |
+                                                     (previous_games.VISITOR_TEAM_ID == visitor_team_id)
+                                                     )
+    visitor_team_season_games = previous_games[query]
+    if len(home_team_season_games) > 10:
+        skip = False
+
+    return skip, home_team_season_games, visitor_team_season_games
+
+
+def __get_game_matchup(game, previous_games, home_team_season_games, visitor_team_season_games):
     game_processed = {}
     game_id = game.name
     game_date = game.GAME_DATE_EST
@@ -148,22 +187,6 @@ def __get_game_matchup(game, previous_games):
             ((previous_games.HOME_TEAM_ID == visitor_team_id) | (previous_games.VISITOR_TEAM_ID == visitor_team_id))
     last10_matchup = previous_games[query].tail(10)
 
-    query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == home_team_id) |
-                                                     (previous_games.VISITOR_TEAM_ID == home_team_id
-                                                      ))
-    home_team_season_games = previous_games[query]
-    if not len(home_team_season_games) > 10:
-        home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
-                                                                                  home_team_id, visitor_team_id)
-    else:
-        query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == visitor_team_id) |
-                                                         (previous_games.VISITOR_TEAM_ID == visitor_team_id)
-                                                         )
-        visitor_team_season_games = previous_games[query]
-        if not len(visitor_team_season_games) > 10:
-            home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
-                                                                                      home_team_id, visitor_team_id)
-
     home_team_data = __get_acc_data(team_id=home_team_id, season_team_games=home_team_season_games,
                                     last10_matchup=last10_matchup, today_rankings=today_ranking_df)
 
@@ -181,16 +204,30 @@ def __change_column_order(games_matchup_report_df):
 def __get_games_matchup(season_games: DataFrame):
     print(f"Season games: {len(season_games)}")
     games_matchup = []
-    seasons = season_games.SEASON.unique()
-    idx_begin = len(season_games[season_games.SEASON == seasons[0]])
+    #seasons = season_games.SEASON.unique()
+    #idx_begin = len(season_games[season_games.SEASON == seasons[0]])
+    idx_begin = 0
+    print("Processing...")
     with tqdm(total=len(season_games) - idx_begin) as pbar:
         for i in reversed(range(idx_begin, len(season_games))):
-            row = season_games.iloc[i, :]
+            game = season_games.iloc[i, :]
+            home_team_id = game.HOME_TEAM_ID
+            visitor_team_id = game.VISITOR_TEAM_ID
+            season_year = game.SEASON
             previous_games = season_games[:i]
             try:
-                games_matchup.append(__get_game_matchup(row, previous_games))
+                skip, home_team_season_games, visitor_team_season_games = __filter_previous_games(previous_games,
+                                                                                                  season_year,
+                                                                                                  home_team_id,
+                                                                                                  visitor_team_id)
+                #if skip:
+                #    pbar.update(1)
+                #    continue
+
+                games_matchup.append(
+                    __get_game_matchup(game, previous_games, home_team_season_games, visitor_team_season_games))
             except:
-                print(f"Game: {i}, {row.name}")
+                print(f"Game: {i}, {game.name}")
                 print("Unexpected error:", sys.exc_info()[0])
                 raise
             pbar.update(1)
@@ -202,7 +239,6 @@ def __create_dataframe(start: int = 2016, end: int = 2018):
     global season_games, rankings
     rankings = data.load_rankings()
     season_games = data.get_season_games()
-    print("Processing...")
     query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))
     df: DataFrame = pd.DataFrame(
         __get_games_matchup(
