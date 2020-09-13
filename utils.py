@@ -110,28 +110,35 @@ def do_experiments(exp_name, models, df, train_season_size=2, split_by_quarter=F
     return results
 
 
-def time_series_cv_split(df: DataFrame, train_size=1):
-    df = df.reset_index()
-    test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
-    seasons = df.SEASON.unique()[:-1]
-    for i in range(0, len(seasons)):
-        season = seasons[i]
-        current_df = df[df.SEASON.isin(seasons[i:train_size + i])]
-        n_games_next_season = len(df[df.SEASON == (season + train_size)])
+class CustomTimeSeriesSplit:
+    df: DataFrame
 
-        train_start_idx = current_df.index[0]
-        train_end_idx = current_df.index[-1] + 1
-        test_idx_from = train_end_idx
-        test_start_idx = train_end_idx
-        test_end_idx = test_idx_from + int(n_games_next_season * 0.25)
-        yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx, dtype=int)
+    def __init__(self, df_input) -> None:
+        df = df_input
 
-        for test_size in [0.50, 0.75, 1]:
-            train_end_idx = test_end_idx
+    def split(df: DataFrame, train_size=1):
+        df = df.reset_index()
+        test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
+        seasons = df.SEASON.unique()[:-1]
+        for i in range(0, len(seasons)):
+            season = seasons[i]
+            current_df = df[df.SEASON.isin(seasons[i:train_size + i])]
+            n_games_next_season = len(df[df.SEASON == (season + train_size)])
+
+            train_start_idx = current_df.index[0]
+            train_end_idx = current_df.index[-1] + 1
+            test_idx_from = train_end_idx
             test_start_idx = train_end_idx
-            test_end_idx = test_idx_from + int(n_games_next_season * test_size)
+            test_end_idx = test_idx_from + int(n_games_next_season * 0.25)
             yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
                                                                                   dtype=int)
+
+            for test_size in [0.50, 0.75, 1]:
+                train_end_idx = test_end_idx
+                test_start_idx = train_end_idx
+                test_end_idx = test_idx_from + int(n_games_next_season * test_size)
+                yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
+                                                                                      dtype=int)
 
 
 def feature_scaling(X_train, X_test, start):
