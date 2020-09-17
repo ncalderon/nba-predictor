@@ -5,8 +5,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import utils as utils
+from yellowbrick.classifier import classification_report
 
 exp_results = []
+visualizers = []
 
 
 def get_models():
@@ -107,7 +109,6 @@ def run_experiment_using_cross_validate(exp_name, df, models, tscv, train_splits
 
 
 def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, custom_tscv=(False, [0])):
-
     if type(train_splits) is tuple:
         result_size = train_splits[0]
         seasons = train_splits[1]
@@ -133,6 +134,11 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
         for train_index, test_index in tscv_list:
             if scale:
                 X[train_index], X[test_index] = utils.feature_scaling(X[train_index], X[test_index], 5)
+
+            visualizer = classification_report(
+                model, X[train_index], y[train_index].ravel(), X[test_index], y[test_index].ravel(), classes=[0, 1],
+                support=True
+            )
             fit_info = model.fit(X[train_index], y[train_index].ravel())
             predictions = model.predict(X[test_index])
             balanced_accuracy = balanced_accuracy_score(y[test_index], predictions)
