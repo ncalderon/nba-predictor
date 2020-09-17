@@ -9,6 +9,41 @@ import utils as utils
 exp_results = []
 
 
+def get_models():
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.svm import SVC
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.tree import DecisionTreeClassifier
+    from sklearn.linear_model import SGDClassifier
+    from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+    import lightgbm as lgb
+    import xgboost as xgb
+    models = []
+    models.append(('KNN', KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)))
+    models.append(('SVM', SVC(kernel='linear', random_state=0)))
+    models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
+    models.append(('NB', GaussianNB()))
+    models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
+    models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=42)))
+    models.append(("RF", RandomForestClassifier(n_estimators=200,
+                                                max_features="sqrt",
+                                                max_depth=5,
+                                                n_jobs=-1,
+                                                random_state=0)))
+    models.append(("GB", GradientBoostingClassifier(n_estimators=200,
+                                                    max_depth=5,
+                                                    max_features="sqrt",
+                                                    random_state=0)))
+    models.append(("XGB", xgb.XGBClassifier(
+        max_depth=5, n_estimators=200, random_state=0
+    )))
+
+    models.append(("LGB", lgb.LGBMClassifier(
+        max_depth=5, n_estimators=200, random_state=0
+    )))
+    return models
+
+
 def plot_experiment_results(results):
     results_df = pd.DataFrame(results[0])
     for idx, result in enumerate(results[1:]):
@@ -71,7 +106,7 @@ def run_experiment_using_cross_validate(exp_name, df, models, tscv, train_splits
     return names, results
 
 
-def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False):
+def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, is_tscv_list = False):
     # Evaluate each model in turn
     results = []
     names = []
@@ -82,11 +117,15 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False):
             "test_precision": [],
             "test_recall": []
         }
-        for train_index, test_index in tscv.split(X=X):
+        if is_tscv_list:
+            tscv_list = tscv
+        else:
+            tscv_list = list(tscv.split(X=X))
+        for train_index, test_index in tscv_list:
             if scale:
                 X[train_index], X[test_index] = utils.feature_scaling(X[train_index], X[test_index], 5)
             fit_info = model.fit(X[train_index], y[train_index].ravel())
-            predictions = model.predict(X=X[test_index])
+            predictions = model.predict(X[test_index])
             balanced_accuracy = balanced_accuracy_score(y[test_index], predictions)
             precision = model.score(X[test_index], y[test_index].ravel())
             recall = recall_score(y[test_index], predictions)

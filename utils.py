@@ -10,6 +10,7 @@ from sklearn.tree import DecisionTreeClassifier
 import model.train as train
 import model.dataset.config as config
 import model.config as model_config
+import model.dataset.game_matchup as gm
 
 
 def do_experiment(experiment):
@@ -113,11 +114,12 @@ def do_experiments(exp_name, models, df, train_season_size=2, split_by_quarter=F
 class CustomTimeSeriesSplit:
     df: DataFrame
 
-    def __init__(self, df_input) -> None:
-        df = df_input
+    def __init__(self, df_input):
+        global df
+        df = df_input.reset_index()
 
-    def split(df: DataFrame, train_size=1):
-        df = df.reset_index()
+    def split(self, train_size=1):
+        global df
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
         seasons = df.SEASON.unique()[:-1]
         for i in range(0, len(seasons)):
@@ -200,4 +202,11 @@ def load_experiment_results():
 
 
 if __name__ == '__main__':
-    pass
+    gm_df = gm.load_game_matchup_dataset()
+    df = gm_df[gm_df.SEASON >= 2013]
+    train_splits = len(df.SEASON.unique()) - 1
+    tscv = CustomTimeSeriesSplit(df)
+    X, y = train.X_y_values(df, model_config.X_ordinal_cols + model_config.X_num_cols, model_config.y_columns[-1:])
+    print(len(X))
+    for train_index, test_index in tscv.split(1):
+        print("TRAIN:", len(train_index), "TEST:", len(test_index))
