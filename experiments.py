@@ -39,17 +39,17 @@ def get_models():
     )))
 
     models.append(("LGB", lgb.LGBMClassifier(
-        max_depth=5, n_estimators=200, random_state=0
+        max_depth=5, n_estimators=200, random_state=0, min_data_in_leaf=80, num_leaves=32
     )))
     return models
 
 
-def plot_experiment_results(results):
+def plot_experiment_results(exp_name, results, figsize=(25, 10)):
     results_df = pd.DataFrame(results[0])
     for idx, result in enumerate(results[1:]):
         result_df = pd.DataFrame(result)
         results_df = pd.concat([results_df, result_df], ignore_index=True)
-    fig, (ax1, ax2) = plt.subplots(2, 3, figsize=(25, 10))
+    fig, (ax1, ax2) = plt.subplots(2, 3, figsize=figsize)
 
     ax = sns.boxplot(x="model", y="test_balanced_accuracy", data=results_df, ax=ax1[0]).set_title("balanced_accuracy")
     ax = sns.boxplot(x="model", y="test_precision", data=results_df, ax=ax1[1]).set_title("precision")
@@ -63,7 +63,7 @@ def plot_experiment_results(results):
         "precision")
     ax = sns.pointplot(data=results_df,
                        kind="point", x="season_train", y="test_recall", hue="model", ax=ax2[2]).set_title("recall")
-    fig.savefig("./plots/tscv_exp.png")
+    fig.savefig(f"./plots/{exp_name}_exp.png")
     return results_df
 
 
@@ -106,7 +106,15 @@ def run_experiment_using_cross_validate(exp_name, df, models, tscv, train_splits
     return names, results
 
 
-def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, is_tscv_list = False):
+def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, custom_tscv=(False, [0])):
+
+    if type(train_splits) is tuple:
+        result_size = train_splits[0]
+        seasons = train_splits[1]
+    else:
+        result_size = train_splits
+        seasons = list(df.SEASON.unique()[-train_splits:])
+
     # Evaluate each model in turn
     results = []
     names = []
@@ -117,10 +125,11 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
             "test_precision": [],
             "test_recall": []
         }
-        if is_tscv_list:
+        if custom_tscv[0]:
             tscv_list = tscv
         else:
             tscv_list = list(tscv.split(X=X))
+
         for train_index, test_index in tscv_list:
             if scale:
                 X[train_index], X[test_index] = utils.feature_scaling(X[train_index], X[test_index], 5)
@@ -149,8 +158,9 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
             f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])} - {np.std(cv_results["test_balanced_accuracy"])}')
         print(f'precision: {np.mean(cv_results["test_precision"])} - {np.std(cv_results["test_precision"])}')
         print(f'recall: {np.mean(cv_results["test_recall"])} - {np.std(cv_results["test_recall"])}')
-        cv_results["model"] = [name] * train_splits
-        cv_results["season_train"] = list(df.SEASON.unique()[-train_splits:])
+        cv_results["model"] = [name] * result_size
+        cv_results["season_train"] = [season + q for season in seasons for q in custom_tscv[1]]
+
         results.append(cv_results)
         names.append(name)
     print("Done")
