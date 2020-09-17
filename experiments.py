@@ -1,5 +1,5 @@
 from sklearn.model_selection import cross_val_score, cross_validate
-from sklearn.metrics import precision_score, recall_score, balanced_accuracy_score
+from sklearn.metrics import precision_score, recall_score, balanced_accuracy_score, f1_score, roc_auc_score
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -124,7 +124,9 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
         cv_results = {
             "test_balanced_accuracy": [],
             "test_precision": [],
-            "test_recall": []
+            "test_recall": [],
+            "test_f1": [],
+            "test_roc_auc": [],
         }
         if custom_tscv[0]:
             tscv_list = tscv
@@ -135,28 +137,46 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
             if scale:
                 X[train_index], X[test_index] = utils.feature_scaling(X[train_index], X[test_index], 5)
 
-            visualizer = classification_report(
-                model, X[train_index], y[train_index].ravel(), X[test_index], y[test_index].ravel(), classes=[0, 1],
-                support=True
-            )
-            fit_info = model.fit(X[train_index], y[train_index].ravel())
-            predictions = model.predict(X[test_index])
-            balanced_accuracy = balanced_accuracy_score(y[test_index], predictions)
-            precision = model.score(X[test_index], y[test_index].ravel())
-            recall = recall_score(y[test_index], predictions)
-            cv_results["test_balanced_accuracy"].append(balanced_accuracy)
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index].ravel(), y[test_index].ravel()
+            y_true = y_test
+            # visualizer = classification_report(
+            #     model, X[train_index], y[train_index].ravel(), X[test_index], y[test_index].ravel(), classes=["Loss", "Win"],
+            #     support=True
+            # )
+            #visualizer.show()
+            fit_info = model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            #precision = model.score(X[test_index], y[test_index].ravel())
+            precision = precision_score(y_true, y_pred)
             cv_results["test_precision"].append(precision)
+
+            balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
+            cv_results["test_balanced_accuracy"].append(balanced_accuracy)
+
+            recall = recall_score(y_true, y_pred)
             cv_results["test_recall"].append(recall)
+
+            f1 = f1_score(y_true, y_pred, average='weighted')
+            cv_results["test_f1"].append(f1)
+
+            roc_auc = roc_auc_score(y_true, y_pred, average='weighted')
+            cv_results["test_roc_auc"].append(roc_auc)
+
 
         exp_result = {
             "exp_name": exp_name,
             "model": name,
-            "balanced_accuracy_mean": np.mean(cv_results["test_balanced_accuracy"]),
-            "balanced_accuracy_std": np.std(cv_results["test_balanced_accuracy"]),
             "precision_mean": np.mean(cv_results["test_precision"]),
             "precision_std": np.std(cv_results["test_precision"]),
+            "balanced_accuracy_mean": np.mean(cv_results["test_balanced_accuracy"]),
+            "balanced_accuracy_std": np.std(cv_results["test_balanced_accuracy"]),
             "recall_mean": np.mean(cv_results["test_recall"]),
             "recall_std": np.std(cv_results["test_recall"]),
+            "f1_mean": np.mean(cv_results["test_f1"]),
+            "f1_std": np.std(cv_results["test_f1"]),
+            "roc_auc_mean": np.mean(cv_results["test_roc_auc"]),
+            "roc_auc_std": np.std(cv_results["test_roc_auc"]),
         }
         exp_results.append(exp_result)
         print(f'{name}')
@@ -164,6 +184,8 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
             f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])} - {np.std(cv_results["test_balanced_accuracy"])}')
         print(f'precision: {np.mean(cv_results["test_precision"])} - {np.std(cv_results["test_precision"])}')
         print(f'recall: {np.mean(cv_results["test_recall"])} - {np.std(cv_results["test_recall"])}')
+        print(f'f1: {np.mean(cv_results["test_f1"])} - {np.std(cv_results["test_f1"])}')
+        print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])} - {np.std(cv_results["test_roc_auc"])}')
         cv_results["model"] = [name] * result_size
         cv_results["season_train"] = [season + q for season in seasons for q in custom_tscv[1]]
 
