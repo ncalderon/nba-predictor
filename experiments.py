@@ -1,11 +1,11 @@
-from sklearn.model_selection import cross_val_score, cross_validate
-from sklearn.metrics import precision_score, recall_score, balanced_accuracy_score, f1_score, roc_auc_score
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.metrics import precision_score, recall_score, balanced_accuracy_score, f1_score, roc_auc_score
+from sklearn.model_selection import cross_validate
+
 import utils as utils
-from yellowbrick.classifier import classification_report
 
 exp_results = []
 visualizers = []
@@ -86,10 +86,11 @@ def plot_to_compare_experiments(results_total, metric="test_balanced_accuracy", 
             a.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
             idx += 1
 
-            #for ax_column in ax_row:
+            # for ax_column in ax_row:
     # Put the legend out of the figure
 
     fig.savefig(f"./plots/{metric}.png")
+
 
 def plot_experiment_results(exp_name, results, figsize=(25, 10)):
     results_df = map_results_to_df(results)
@@ -239,4 +240,3 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
 if __name__ == '__main__':
     results_total = utils.deserialize_object("results_total")
     plot_to_compare_experiments(results_total)
-
