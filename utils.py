@@ -118,7 +118,7 @@ class CustomTimeSeriesSplit:
         global df
         df = df_input.reset_index()
 
-    def split(self, train_size=1):
+    def split(self, train_size=1, quarters=[0.25, 0.50, 0.75, 1]):
         global df
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
         seasons = df.SEASON.unique()[:-1]
@@ -131,11 +131,10 @@ class CustomTimeSeriesSplit:
             train_end_idx = current_df.index[-1] + 1
             test_idx_from = train_end_idx
             test_start_idx = train_end_idx
-            test_end_idx = test_idx_from + int(n_games_next_season * 0.25)
+            test_end_idx = test_idx_from + int(n_games_next_season * quarters[0])
             yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
                                                                                   dtype=int)
-
-            for test_size in [0.50, 0.75, 1]:
+            for test_size in quarters[1:]:
                 train_end_idx = test_end_idx
                 test_start_idx = train_end_idx
                 test_end_idx = test_idx_from + int(n_games_next_season * test_size)
@@ -201,12 +200,13 @@ def load_experiment_results():
     return season2_predict1_results, season1_and_q_predict_q_results
 
 
+def serialize_object(filename, obj):
+    pickle.dump(obj, open(f"data/{filename}.p", "wb"))
+
+
+def deserialize_object(filename):
+    return pickle.load(open(f"data/{filename}.p", "rb"))
+
+
 if __name__ == '__main__':
-    gm_df = gm.load_game_matchup_dataset()
-    df = gm_df[gm_df.SEASON >= 2013]
-    train_splits = len(df.SEASON.unique()) - 1
-    tscv = CustomTimeSeriesSplit(df)
-    X, y = train.X_y_values(df, model_config.X_ordinal_cols + model_config.X_num_cols, model_config.y_columns[-1:])
-    print(len(X))
-    for train_index, test_index in tscv.split(1):
-        print("TRAIN:", len(train_index), "TEST:", len(test_index))
+    pass

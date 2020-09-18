@@ -46,11 +46,53 @@ def get_models():
     return models
 
 
-def plot_experiment_results(exp_name, results, figsize=(25, 10)):
+def map_results_to_df(results):
     results_df = pd.DataFrame(results[0])
     for idx, result in enumerate(results[1:]):
         result_df = pd.DataFrame(result)
         results_df = pd.concat([results_df, result_df], ignore_index=True)
+    return results_df
+
+
+def generate_plots(file_name, row_size, column_size, figsize=(25, 10), persist=True):
+    fig, ax_rows = plt.subplots(row_size, column_size, figsize=figsize)
+    fig.suptitle(file_name)
+    for ax_row in ax_rows:
+        for ax_column in ax_row:
+            yield ax_column
+    fig.savefig(f"./plots/{file_name}.png")
+
+
+def plot_to_compare_experiments(results_total, metric="test_balanced_accuracy", figsize=(25, 10), use_pointplot=False):
+    row_size, column_size = len(results_total) // 4 + 1, 3
+    idx = 0
+    fig, ax_rows = plt.subplots(len(results_total), figsize=figsize)
+    fig.suptitle(metric)
+    while idx < len(results_total):
+        for ax_row in ax_rows:
+            if idx >= len(results_total):
+                break
+            result = results_total[idx]
+            results_df = map_results_to_df(result[1])
+
+            if use_pointplot:
+                a = sns.pointplot(data=results_df,
+                                  kind="point", x="season_train", y=metric, hue="model",
+                                  ax=ax_row)
+            else:
+                a = sns.boxplot(x="model", y=metric, data=results_df, ax=ax_row)
+            a.set_xlabel(None)
+            a.set_title(result[0])
+            a.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+            idx += 1
+
+            #for ax_column in ax_row:
+    # Put the legend out of the figure
+
+    fig.savefig(f"./plots/{metric}.png")
+
+def plot_experiment_results(exp_name, results, figsize=(25, 10)):
+    results_df = map_results_to_df(results)
     fig, (ax1, ax2) = plt.subplots(2, 3, figsize=figsize)
 
     ax = sns.boxplot(x="model", y="test_balanced_accuracy", data=results_df, ax=ax1[0]).set_title("balanced_accuracy")
@@ -144,10 +186,10 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
             #     model, X[train_index], y[train_index].ravel(), X[test_index], y[test_index].ravel(), classes=["Loss", "Win"],
             #     support=True
             # )
-            #visualizer.show()
+            # visualizer.show()
             fit_info = model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-            #precision = model.score(X[test_index], y[test_index].ravel())
+            # precision = model.score(X[test_index], y[test_index].ravel())
             precision = precision_score(y_true, y_pred)
             cv_results["test_precision"].append(precision)
 
@@ -162,7 +204,6 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
 
             roc_auc = roc_auc_score(y_true, y_pred, average='weighted')
             cv_results["test_roc_auc"].append(roc_auc)
-
 
         exp_result = {
             "exp_name": exp_name,
@@ -193,3 +234,9 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
         names.append(name)
     print("Done")
     return names, results
+
+
+if __name__ == '__main__':
+    results_total = utils.deserialize_object("results_total")
+    plot_to_compare_experiments(results_total)
+
