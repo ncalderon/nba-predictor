@@ -111,17 +111,49 @@ def do_experiments(exp_name, models, df, train_season_size=2, split_by_quarter=F
     return results
 
 
-class CustomTimeSeriesSplit:
+# class CustomTimeSeriesSplit:
+#     df: DataFrame
+# 
+#     def __init__(self, df_input):
+#         global df
+#         df = df_input.reset_index()
+# 
+#     def split(self, train_size=1, quarters=[0.25, 0.50, 0.75, 1]):
+#         global df
+#         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
+#         seasons = df.SEASON.unique()[:-1]
+#         for i in range(0, len(seasons)):
+#             season = seasons[i]
+#             current_df = df[df.SEASON.isin(seasons[i:train_size + i])]
+#             n_games_next_season = len(df[df.SEASON == (season + train_size)])
+# 
+#             train_start_idx = current_df.index[0]
+#             train_end_idx = current_df.index[-1] + 1
+#             test_idx_from = train_end_idx
+#             test_start_idx = train_end_idx
+#             test_end_idx = test_idx_from + int(n_games_next_season * quarters[0])
+#             yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
+#                                                                                   dtype=int)
+#             for test_size in quarters[1:]:
+#                 train_end_idx = test_end_idx
+#                 test_start_idx = train_end_idx
+#                 test_end_idx = test_idx_from + int(n_games_next_season * test_size)
+#                 yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
+#                                                                                       dtype=int)
+
+class SeasonTimeSeriesSplit:
     df: DataFrame
 
     def __init__(self, df_input):
         global df
         df = df_input.reset_index()
 
-    def split(self, train_size=1, quarters=[0.25, 0.50, 0.75, 1]):
+    def split(self, train_size=1, test_size=1):
         global df
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
         seasons = df.SEASON.unique()[:-1]
+        for season, idx in seasons:
+            season_df = df[df.SEASON.isin(seasons[i:train_size + i])]
         for i in range(0, len(seasons)):
             season = seasons[i]
             current_df = df[df.SEASON.isin(seasons[i:train_size + i])]
@@ -140,6 +172,8 @@ class CustomTimeSeriesSplit:
                 test_end_idx = test_idx_from + int(n_games_next_season * test_size)
                 yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
                                                                                       dtype=int)
+
+
 
 
 def feature_scaling(X_train, X_test, start):
