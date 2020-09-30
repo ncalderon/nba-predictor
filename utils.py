@@ -141,7 +141,7 @@ def do_experiments(exp_name, models, df, train_season_size=2, split_by_quarter=F
 #                 yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
 #                                                                                       dtype=int)
 
-class SeasonTimeSeriesSplit:
+class SeasonSeriesSplit:
     df: DataFrame
 
     def __init__(self, df_input):
@@ -152,12 +152,26 @@ class SeasonTimeSeriesSplit:
         global df
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
         seasons = df.SEASON.unique()[:-test_size]
-        for i in range(0, len(seasons)-test_size, test_size):
-            train_to = i+train_size
+        folds = []
+        train_seasons = []
+        test_seasons = []
+        for i in range(0, len(seasons) - test_size, test_size):
+            train_to = i + train_size
             test_to = train_to + test_size
             train_df = df[df.SEASON.isin(seasons[i:train_to])]
-            test_df = df[df.SEASON.isin(seasons[train_to:train_to+test_size])]
-            yield train_df.index.values, test_df.index.values
+            test_df = df[df.SEASON.isin(seasons[train_to:test_to])]
+            if len(test_df) <= 0:
+                continue
+
+            train_seasons.append("-".join(map(str, seasons[i:train_to])))
+            test_seasons.append("-".join(map(str, seasons[train_to:test_to])))
+
+            folds.append(
+                (train_df.index.values,
+                 test_df.index.values
+                 ))
+        return folds, train_seasons, test_seasons
+
 
 def feature_scaling(X_train, X_test, start):
     from sklearn.preprocessing import StandardScaler

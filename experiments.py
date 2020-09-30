@@ -101,13 +101,13 @@ def plot_experiment_results(exp_name, results, figsize=(25, 10)):
     ax = sns.boxplot(x="model", y="test_recall", data=results_df, ax=ax1[2]).set_title("recall")
 
     ax = sns.pointplot(data=results_df,
-                       kind="point", x="season_train", y="test_balanced_accuracy", hue="model", ax=ax2[0]).set_title(
+                       kind="point", x="season_test", y="test_balanced_accuracy", hue="model", ax=ax2[0]).set_title(
         "balanced_accuracy")
     ax = sns.pointplot(data=results_df,
-                       kind="point", x="season_train", y="test_precision", hue="model", ax=ax2[1]).set_title(
+                       kind="point", x="season_test", y="test_precision", hue="model", ax=ax2[1]).set_title(
         "precision")
     ax = sns.pointplot(data=results_df,
-                       kind="point", x="season_train", y="test_recall", hue="model", ax=ax2[2]).set_title("recall")
+                       kind="point", x="season_test", y="test_recall", hue="model", ax=ax2[2]).set_title("recall")
     fig.savefig(f"./plots/{exp_name}_exp.png")
     return results_df
 
@@ -151,13 +151,7 @@ def run_experiment_using_cross_validate(exp_name, df, models, tscv, train_splits
     return names, results
 
 
-def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, custom_tscv=(False, [0])):
-    if type(train_splits) is tuple:
-        result_size = train_splits[0]
-        seasons = train_splits[1]
-    else:
-        result_size = train_splits
-        seasons = list(df.SEASON.unique()[-train_splits:])
+def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False):
 
     # Evaluate each model in turn
     results = []
@@ -171,26 +165,17 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
             "test_f1": [],
             "test_roc_auc": [],
         }
-        if custom_tscv[0]:
-            tscv_list = tscv
-        else:
-            tscv_list = list(tscv.split(X=X))
 
-        for train_index, test_index in tscv_list:
+        cv_results["season_train"] = []
+        for train_idx, test_idx in folds:
             if scale:
-                X[train_index], X[test_index] = utils.feature_scaling(X[train_index], X[test_index], 5)
+                X[train_idx], X[test_idx] = utils.feature_scaling(X[train_idx], X[test_idx], 5)
 
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index].ravel(), y[test_index].ravel()
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = y[train_idx].ravel(), y[test_idx].ravel()
             y_true = y_test
-            # visualizer = classification_report(
-            #     model, X[train_index], y[train_index].ravel(), X[test_index], y[test_index].ravel(), classes=["Loss", "Win"],
-            #     support=True
-            # )
-            # visualizer.show()
             fit_info = model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-            # precision = model.score(X[test_index], y[test_index].ravel())
             precision = precision_score(y_true, y_pred)
             cv_results["test_precision"].append(precision)
 
@@ -223,13 +208,18 @@ def run_experiment(exp_name, df, models, tscv, train_splits, X, y, scale=False, 
         exp_results.append(exp_result)
         print(f'{name}')
         print(
-            f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])} - {np.std(cv_results["test_balanced_accuracy"])}')
-        print(f'precision: {np.mean(cv_results["test_precision"])} - {np.std(cv_results["test_precision"])}')
-        print(f'recall: {np.mean(cv_results["test_recall"])} - {np.std(cv_results["test_recall"])}')
+            f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
+            f' - {np.std(cv_results["test_balanced_accuracy"])}')
+        print(f'precision: {np.mean(cv_results["test_precision"])}'
+              f' - {np.std(cv_results["test_precision"])}')
+        print(f'recall: {np.mean(cv_results["test_recall"])}'
+              f' - {np.std(cv_results["test_recall"])}')
         print(f'f1: {np.mean(cv_results["test_f1"])} - {np.std(cv_results["test_f1"])}')
-        print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])} - {np.std(cv_results["test_roc_auc"])}')
-        cv_results["model"] = [name] * result_size
-        cv_results["season_train"] = [season + q for season in seasons for q in custom_tscv[1]]
+        print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])}'
+              f' - {np.std(cv_results["test_roc_auc"])}')
+        cv_results["model"] = [name] * len(folds)
+        cv_results["season_train"] = train_seasons
+        cv_results["season_test"] = test_seasons
 
         results.append(cv_results)
         names.append(name)
