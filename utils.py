@@ -151,30 +151,13 @@ class SeasonTimeSeriesSplit:
     def split(self, train_size=1, test_size=1):
         global df
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
-        seasons = df.SEASON.unique()[:-1]
-        for season, idx in seasons:
-            season_df = df[df.SEASON.isin(seasons[i:train_size + i])]
-        for i in range(0, len(seasons)):
-            season = seasons[i]
-            current_df = df[df.SEASON.isin(seasons[i:train_size + i])]
-            n_games_next_season = len(df[df.SEASON == (season + train_size)])
-
-            train_start_idx = current_df.index[0]
-            train_end_idx = current_df.index[-1] + 1
-            test_idx_from = train_end_idx
-            test_start_idx = train_end_idx
-            test_end_idx = test_idx_from + int(n_games_next_season * quarters[0])
-            yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
-                                                                                  dtype=int)
-            for test_size in quarters[1:]:
-                train_end_idx = test_end_idx
-                test_start_idx = train_end_idx
-                test_end_idx = test_idx_from + int(n_games_next_season * test_size)
-                yield np.arange(train_start_idx, train_end_idx, dtype=int), np.arange(test_start_idx, test_end_idx,
-                                                                                      dtype=int)
-
-
-
+        seasons = df.SEASON.unique()[:-test_size]
+        for i in range(0, len(seasons)-test_size, test_size):
+            train_to = i+train_size
+            test_to = train_to + test_size
+            train_df = df[df.SEASON.isin(seasons[i:train_to])]
+            test_df = df[df.SEASON.isin(seasons[train_to:train_to+test_size])]
+            yield train_df.index.values, test_df.index.values
 
 def feature_scaling(X_train, X_test, start):
     from sklearn.preprocessing import StandardScaler
