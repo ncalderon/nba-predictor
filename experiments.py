@@ -77,7 +77,7 @@ def plot_to_compare_experiments(results_total, metric="test_balanced_accuracy", 
 
             if use_pointplot:
                 a = sns.pointplot(data=results_df,
-                                  kind="point", x="season_train", y=metric, hue="model",
+                                  kind="point", x="season_test", y=metric, hue="model",
                                   ax=ax_row)
             else:
                 a = sns.boxplot(x="model", y=metric, data=results_df, ax=ax_row)
@@ -182,7 +182,7 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, s
             balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
             cv_results["test_balanced_accuracy"].append(balanced_accuracy)
 
-            recall = recall_score(y_true, y_pred)
+            recall = recall_score(y_true, y_pred, average='weighted')
             cv_results["test_recall"].append(recall)
 
             f1 = f1_score(y_true, y_pred, average='weighted')
