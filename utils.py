@@ -11,15 +11,16 @@ def save_results(name, results):
     pickle.dump(results, experiments_file)
     experiments_file.close()
 
+
 class SeasonSeriesSplit:
     df: DataFrame
     season_quarters = []
 
     def __init__(self, df_input):
         self.df = df_input.reset_index()
-        self.__quarter_split()
 
-    def __quarter_split(self):
+    def __quarter_split(self, skip=[]):
+        self.season_quarters = []
         df_gr = self.df.groupby("SEASON")
         quarters = [0.25, 0.50, 0.75, 1]
         for season, group in df_gr:
@@ -27,6 +28,8 @@ class SeasonSeriesSplit:
             start = 0
             end = 0
             for q in quarters:
+                if q in skip:
+                    continue
                 start = end
                 end = int(season_size * q)
                 self.season_quarters.append(
@@ -56,21 +59,24 @@ class SeasonSeriesSplit:
                  ))
         return folds, train_seasons, test_seasons
 
-    def quarter_split(self, train_size=3, test_size=1):
+    def quarter_split(self, train_size=3, test_size=1, skip=[]):
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
-
+        if skip:
+            self.__quarter_split(skip)
+        else:
+            self.__quarter_split()
         folds = []
         train_seasons = []
         test_seasons = []
         q_split = len(self.season_quarters)
-        start = 0
+        start = -1
         end = 0
-        while q_split > 0:
-            start = end
+        while q_split >= train_size + test_size:
+            start += 1
             end = start + train_size
             start_test = end
             end_test = start_test + test_size
-            q_split -= train_size + test_size
+            q_split -= 1
             train_seasons.append("-".join(map(str,
                                               [x1 for x, x1 in self.season_quarters[start:end]]
                                               )))
@@ -79,9 +85,9 @@ class SeasonSeriesSplit:
                                              )))
             folds.append(
                 (
-                  [y for x, x1 in self.season_quarters[start:end] for y in x]
-                  ,[y for x, x1 in self.season_quarters[start_test:end_test] for y in x]
-                 )
+                    [y for x, x1 in self.season_quarters[start:end] for y in x]
+                    , [y for x, x1 in self.season_quarters[start_test:end_test] for y in x]
+                )
             )
 
         return folds, train_seasons, test_seasons
@@ -106,6 +112,5 @@ def deserialize_object(filename):
 if __name__ == '__main__':
     df = deserialize_object("df")
     sscv = SeasonSeriesSplit(df)
-    sscv.quarter_split(3, 1)
-    sscv.quarter_split(3, 1)
+    sscv.quarter_split(train_size=4, test_size=2)
     pass

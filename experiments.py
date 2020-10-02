@@ -2,9 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import precision_score, recall_score, balanced_accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import precision_score, \
+    recall_score, \
+    balanced_accuracy_score, \
+    f1_score, \
+    roc_auc_score
 from sklearn.model_selection import cross_validate
-
 import utils as utils
 
 exp_results = []
@@ -20,6 +23,8 @@ def get_models():
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
     import lightgbm as lgb
     import xgboost as xgb
+    from catboost import CatBoostClassifier
+
     models = []
     models.append(('KNN', KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)))
     models.append(('SVM', SVC(kernel='linear', random_state=0)))
@@ -37,12 +42,27 @@ def get_models():
                                                     max_features="sqrt",
                                                     random_state=0)))
     models.append(("XGB", xgb.XGBClassifier(
-        max_depth=5, n_estimators=200, random_state=0
+        random_state=0,
+        max_depth=20,
+        n_estimators=200
     )))
 
     models.append(("LGB", lgb.LGBMClassifier(
-        max_depth=5, n_estimators=200, random_state=0, min_data_in_leaf=80, num_leaves=32
+        random_state=0,
+        max_depth=20,
+        objective='binary',
+        metric='binary_logloss',
+        n_estimators=200,
+        num_leaves=300
     )))
+    # models.append(("CB", CatBoostClassifier(
+    #     depth=10,
+    #     n_estimators=200,
+    #     random_state=0,
+    #     min_data_in_leaf=80,
+    #     learning_rate=0.1,
+    #     l2_leaf_reg=9
+    # )))
     return models
 
 
