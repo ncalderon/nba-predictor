@@ -28,10 +28,10 @@ def get_models():
     models = []
     models.append(('KNN', KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)))
     models.append(('SVM', SVC(kernel='linear', random_state=0)))
-    models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
-    models.append(('NB', GaussianNB()))
-    models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
-    models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=42)))
+    #models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
+    #models.append(('NB', GaussianNB()))
+    #models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
+    #models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=0)))
     models.append(("RF", RandomForestClassifier(n_estimators=200,
                                                 max_features="sqrt",
                                                 max_depth=5,
@@ -74,15 +74,6 @@ def map_results_to_df(results):
     return results_df
 
 
-def generate_plots(file_name, row_size, column_size, figsize=(25, 10), persist=True):
-    fig, ax_rows = plt.subplots(row_size, column_size, figsize=figsize)
-    fig.suptitle(file_name)
-    for ax_row in ax_rows:
-        for ax_column in ax_row:
-            yield ax_column
-    fig.savefig(f"./plots/{file_name}.png")
-
-
 def plot_to_compare_experiments(results_total, metric="test_balanced_accuracy", figsize=(25, 10), use_pointplot=False):
     row_size, column_size = len(results_total) // 4 + 1, 3
     idx = 0
@@ -109,7 +100,7 @@ def plot_to_compare_experiments(results_total, metric="test_balanced_accuracy", 
             # for ax_column in ax_row:
     # Put the legend out of the figure
 
-    fig.savefig(f"./plots/{metric}.png")
+    # fig.savefig(f"./plots/{metric}.png")
 
 
 def plot_experiment_results(exp_name, results, figsize=(25, 10)):
@@ -128,51 +119,12 @@ def plot_experiment_results(exp_name, results, figsize=(25, 10)):
         "precision")
     ax = sns.pointplot(data=results_df,
                        kind="point", x="season_test", y="test_recall", hue="model", ax=ax2[2]).set_title("recall")
-    fig.savefig(f"./plots/{exp_name}_exp.png")
+    # fig.savefig(f"./plots/{exp_name}_exp.png")
     return results_df
 
 
-def run_experiment_using_cross_validate(exp_name, df, models, tscv, train_splits, X, y):
-    # Evaluate each model in turn
-    results = []
-    names = []
-    print("Start experiment using TimeSeriesSplit")
-    for name, model in models:
-        cv_results = cross_validate(model,
-                                    X,
-                                    y.ravel(),
-                                    cv=tscv,
-                                    scoring=['balanced_accuracy', 'precision', "recall"]
-                                    , return_train_score=True
-                                    )
-
-        exp_result = {
-            "exp_name": exp_name,
-            "model": name,
-            "balanced_accuracy_mean": cv_results["test_balanced_accuracy"].mean(),
-            "balanced_accuracy_std": cv_results["test_balanced_accuracy"].std(),
-            "precision_mean": cv_results["test_precision"].mean(),
-            "precision_std": cv_results["test_precision"].std(),
-            "recall_mean": cv_results["test_recall"].mean(),
-            "recall_std": cv_results["test_recall"].std(),
-        }
-        exp_results.append(exp_result)
-        print(f'{name}')
-        print(
-            f'test_balanced_accuracy: {cv_results["test_balanced_accuracy"].mean()} - {cv_results["test_balanced_accuracy"].std()}')
-        print(f'test_precision: {cv_results["test_precision"].mean()} - {cv_results["test_precision"].std()}')
-        print(f'test_recall: {cv_results["test_recall"].mean()} - {cv_results["test_recall"].std()}')
-        cv_results["model"] = [name] * train_splits
-        cv_results["season_train"] = list(df.SEASON.unique()[-train_splits:])
-        results.append(cv_results)
-
-        names.append(name)
-    print("Done")
-    return names, results
-
-
-def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False):
-
+def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False
+                   , verbose=False):
     # Evaluate each model in turn
     results = []
     names = []
@@ -226,17 +178,23 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, s
             "roc_auc_std": np.std(cv_results["test_roc_auc"]),
         }
         exp_results.append(exp_result)
-        print(f'{name}')
-        print(
-            f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
-            f' - {np.std(cv_results["test_balanced_accuracy"])}')
-        print(f'precision: {np.mean(cv_results["test_precision"])}'
-              f' - {np.std(cv_results["test_precision"])}')
-        print(f'recall: {np.mean(cv_results["test_recall"])}'
-              f' - {np.std(cv_results["test_recall"])}')
-        print(f'f1: {np.mean(cv_results["test_f1"])} - {np.std(cv_results["test_f1"])}')
-        print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])}'
-              f' - {np.std(cv_results["test_roc_auc"])}')
+        if verbose:
+            print(f'{name}')
+            print(
+                f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
+                f' - {np.std(cv_results["test_balanced_accuracy"])}')
+            print(f'precision: {np.mean(cv_results["test_precision"])}'
+                  f' - {np.std(cv_results["test_precision"])}')
+            print(f'recall: {np.mean(cv_results["test_recall"])}'
+                  f' - {np.std(cv_results["test_recall"])}')
+            print(f'f1: {np.mean(cv_results["test_f1"])} - {np.std(cv_results["test_f1"])}')
+            print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])}'
+                  f' - {np.std(cv_results["test_roc_auc"])}')
+        else:
+            print(
+                f'{name}: balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
+                f' - {np.std(cv_results["test_balanced_accuracy"])}')
+
         cv_results["model"] = [name] * len(folds)
         cv_results["season_train"] = train_seasons
         cv_results["season_test"] = test_seasons
