@@ -190,10 +190,10 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, s
             print(f'f1: {np.mean(cv_results["test_f1"])} - {np.std(cv_results["test_f1"])}')
             print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])}'
                   f' - {np.std(cv_results["test_roc_auc"])}')
-        else:
-            print(
-                f'{name}: balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
-                f' - {np.std(cv_results["test_balanced_accuracy"])}')
+        # else:
+        #     print(
+        #         f'{name}: balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
+        #         f' - {np.std(cv_results["test_balanced_accuracy"])}')
 
         cv_results["model"] = [name] * len(folds)
         cv_results["season_train"] = train_seasons

@@ -46,17 +46,20 @@ def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: D
                 }
 
     previous_ht_games = season_team_games[(season_team_games.HOME_TEAM_ID == team_id)]
-    acc_data[f"{prefix_key}_HW"], acc_data[f"{prefix_key}_HL"] = __get_balance_previous_season_games(team_id,
+    acc_data[f"{prefix_key}_HW"], acc_data[f"{prefix_key}_HL"] = \
+        __get_balance_previous_season_games(team_id,
                                                                                                      previous_ht_games)
 
     previous_vt_games = season_team_games[(season_team_games.VISITOR_TEAM_ID == team_id)]
-    acc_data[f"{prefix_key}_VW"], acc_data[f"{prefix_key}_VL"] = __get_balance_previous_season_games(team_id,
+    acc_data[f"{prefix_key}_VW"], acc_data[f"{prefix_key}_VL"] = \
+        __get_balance_previous_season_games(team_id,
                                                                                                      previous_vt_games,
                                                                                                      True)
 
     last10_games = season_team_games.tail(10)
 
-    acc_data[f"{prefix_key}_LAST10_W"], acc_data[f"{prefix_key}_LAST10_L"] = __get_balance_last_games(team_id,
+    acc_data[f"{prefix_key}_LAST10_W"], acc_data[f"{prefix_key}_LAST10_L"] = \
+        __get_balance_last_games(team_id,
                                                                                                       last10_games)
 
     acc_data[f"{prefix_key}_LAST10_MATCHUP_W"], acc_data[f"{prefix_key}_LAST10_MATCHUP_L"] = __get_balance_last_games(
@@ -81,7 +84,8 @@ def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: D
             "REB_home": 0, "REB_away": 0
         }, index=[0])
 
-    acc_data[f"{prefix_key}_OVERALL_OFF_POINTS"] = pd.concat([previous_ht_games.PTS_home, previous_vt_games.PTS_away],
+    acc_data[f"{prefix_key}_OVERALL_OFF_POINTS"] = pd.concat([previous_ht_games.PTS_home,
+                                                              previous_vt_games.PTS_away],
                                                              axis=0).mean().round(decimals=3)
     acc_data[f"{prefix_key}_OVERALL_DEF_POINTS"] = pd.concat([previous_ht_games.PTS_away, previous_vt_games.PTS_home],
                                                              axis=0).mean().round(decimals=3)
@@ -98,14 +102,18 @@ def __get_acc_data(team_id: int, season_team_games: DataFrame, last10_matchup: D
         [previous_ht_games.FG3_PCT_away, previous_vt_games.FG3_PCT_home],
         axis=0).mean().round(decimals=3)
 
-    acc_data[f"{prefix_key}_OVERALL_OFF_FT"] = pd.concat([previous_ht_games.FT_PCT_home, previous_vt_games.FT_PCT_away],
+    acc_data[f"{prefix_key}_OVERALL_OFF_FT"] = pd.concat([previous_ht_games.FT_PCT_home,
+                                                          previous_vt_games.FT_PCT_away],
                                                          axis=0).mean().round(decimals=3)
-    acc_data[f"{prefix_key}_OVERALL_DEF_FT"] = pd.concat([previous_ht_games.FT_PCT_away, previous_vt_games.FT_PCT_home],
+    acc_data[f"{prefix_key}_OVERALL_DEF_FT"] = pd.concat([previous_ht_games.FT_PCT_away,
+                                                          previous_vt_games.FT_PCT_home],
                                                          axis=0).mean().round(decimals=3)
 
-    acc_data[f"{prefix_key}_OVERALL_OFF_REB"] = pd.concat([previous_ht_games.REB_home, previous_vt_games.REB_away],
+    acc_data[f"{prefix_key}_OVERALL_OFF_REB"] = pd.concat([previous_ht_games.REB_home,
+                                                           previous_vt_games.REB_away],
                                                           axis=0).mean().round(decimals=3)
-    acc_data[f"{prefix_key}_OVERALL_DEF_REB"] = pd.concat([previous_ht_games.REB_away, previous_vt_games.REB_home],
+    acc_data[f"{prefix_key}_OVERALL_DEF_REB"] = pd.concat([previous_ht_games.REB_away,
+                                                           previous_vt_games.REB_home],
                                                           axis=0).mean().round(decimals=3)
 
     acc_data[f"{prefix_key}_AWAY_POINTS"] = previous_vt_games.PTS_away.mean().round(decimals=3)
@@ -216,16 +224,21 @@ def __get_games_matchup(season_games: DataFrame):
             season_year = game.SEASON
             previous_games = season_games[:i]
             try:
-                skip, home_team_season_games, visitor_team_season_games = __filter_previous_games(previous_games,
-                                                                                                  season_year,
-                                                                                                  home_team_id,
-                                                                                                  visitor_team_id)
+                skip, home_team_season_games, visitor_team_season_games = \
+                    __filter_previous_games(previous_games,
+                                               season_year,
+                                               home_team_id,
+                                               visitor_team_id)
                 #if skip:
                 #    pbar.update(1)
                 #    continue
 
                 games_matchup.append(
-                    __get_game_matchup(game, previous_games, home_team_season_games, visitor_team_season_games))
+                    __get_game_matchup(game,
+                                       previous_games,
+                                       home_team_season_games,
+                                       visitor_team_season_games)
+                )
             except:
                 print(f"Game: {i}, {game.name}")
                 print("Unexpected error:", sys.exc_info()[0])
