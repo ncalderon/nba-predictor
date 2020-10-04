@@ -26,25 +26,23 @@ def get_models():
     from catboost import CatBoostClassifier
 
     models = []
-    models.append(('KNN', KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)))
+    models.append(('KNN', KNeighborsClassifier(n_neighbors=20)))
     models.append(('SVM', SVC(kernel='linear', random_state=0)))
     #models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
     #models.append(('NB', GaussianNB()))
     #models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
     #models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=0)))
-    models.append(("RF", RandomForestClassifier(n_estimators=200,
-                                                max_features="sqrt",
-                                                max_depth=5,
+    models.append(("RF", RandomForestClassifier(n_estimators=500,
+                                                max_depth=20,
                                                 n_jobs=-1,
                                                 random_state=0)))
-    models.append(("GB", GradientBoostingClassifier(n_estimators=200,
-                                                    max_depth=5,
-                                                    max_features="sqrt",
+    models.append(("GB", GradientBoostingClassifier(n_estimators=500,
+                                                    max_depth=20,
                                                     random_state=0)))
     models.append(("XGB", xgb.XGBClassifier(
         random_state=0,
         max_depth=20,
-        n_estimators=200
+        n_estimators=500
     )))
 
     models.append(("LGB", lgb.LGBMClassifier(
@@ -52,7 +50,7 @@ def get_models():
         max_depth=20,
         objective='binary',
         metric='binary_logloss',
-        n_estimators=200,
+        n_estimators=500,
         num_leaves=300
     )))
     # models.append(("CB", CatBoostClassifier(
@@ -122,6 +120,22 @@ def plot_experiment_results(exp_name, results, figsize=(25, 10)):
     # fig.savefig(f"./plots/{exp_name}_exp.png")
     return results_df
 
+
+# def objective(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False
+#                    , verbose=False, trial: Trial, fast_check=True, target_meter=0, return_info=False):
+#     # Evaluate each model in turn
+#     results = []
+#     names = []
+#     print("Running experiment", exp_name)
+#     for name, model in models:
+#         cv_results = {
+#             "test_balanced_accuracy": [],
+#             "test_precision": [],
+#             "test_recall": [],
+#             "test_f1": [],
+#             "test_roc_auc": [],
+#         }
+#         cv_results["season_train"] = []
 
 def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False
                    , verbose=False):
