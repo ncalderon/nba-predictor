@@ -27,31 +27,34 @@ def get_models():
 
     models = []
     models.append(('KNN', KNeighborsClassifier(n_neighbors=20)))
-    models.append(('SVM', SVC(kernel='linear', random_state=0)))
+    models.append(('SVM', SVC(kernel='linear', random_state=0,
+                              C=63.513891775842986,
+                              gamma=76.1465194934807,
+                              degree= 0.4300244876201068)))
     #models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
     #models.append(('NB', GaussianNB()))
     #models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
     #models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=0)))
-    models.append(("RF", RandomForestClassifier(n_estimators=500,
+    models.append(("RF", RandomForestClassifier(n_estimators=200,
                                                 max_depth=20,
                                                 n_jobs=-1,
                                                 random_state=0)))
-    models.append(("GB", GradientBoostingClassifier(n_estimators=500,
+    models.append(("GB", GradientBoostingClassifier(n_estimators=200,
                                                     max_depth=20,
                                                     random_state=0)))
     models.append(("XGB", xgb.XGBClassifier(
         random_state=0,
         max_depth=20,
-        n_estimators=500
+        n_estimators=200
     )))
 
     models.append(("LGB", lgb.LGBMClassifier(
         random_state=0,
         max_depth=20,
-        objective='binary',
-        metric='binary_logloss',
-        n_estimators=500,
-        num_leaves=300
+        #objective='binary',
+        #metric='binary_logloss',
+        n_estimators=200,
+        #num_leaves=300
     )))
     # models.append(("CB", CatBoostClassifier(
     #     depth=10,
