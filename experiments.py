@@ -1,40 +1,72 @@
+import pprint
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import precision_score, \
-    recall_score, \
-    balanced_accuracy_score, \
-    f1_score, \
-    roc_auc_score
-from sklearn.model_selection import cross_validate
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
 import utils as utils
 
+pp = pprint.PrettyPrinter(width=41, compact=True)
 exp_results = []
 visualizers = []
 
 
-def get_models():
+def get_reg_models():
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.svm import SVR
+    from sklearn.tree import DecisionTreeRegressor
+    from sklearn.linear_model import LinearRegression, \
+        SGDRegressor, \
+        Lasso, Ridge, ElasticNet, LassoLars
+    from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+    from lightgbm import LGBMRegressor
+    from xgboost import XGBRegressor
+    from sklearn.multioutput import MultiOutputRegressor
+
+
+    models = []
+    models.append(('KN', MultiOutputRegressor(KNeighborsRegressor(n_neighbors=20))))
+    models.append(('SVM-rbf', MultiOutputRegressor(SVR(kernel='rbf'))))
+    models.append(('SVM-linear', MultiOutputRegressor(SVR(kernel='linear'))))
+    models.append(('DT', MultiOutputRegressor(DecisionTreeRegressor())))
+    models.append(('LinearRegression', MultiOutputRegressor(LinearRegression())))
+    models.append(('SGD', MultiOutputRegressor(SGDRegressor(random_state=0))))
+    models.append(('Lasso', MultiOutputRegressor(Lasso(random_state=0))))
+    models.append(('Ridge', MultiOutputRegressor(Ridge(random_state=0))))
+    models.append(('ElasticNet', MultiOutputRegressor(ElasticNet(random_state=0))))
+    models.append(('LassoLars', MultiOutputRegressor(LassoLars(random_state=0))))
+    models.append(('RF', MultiOutputRegressor(RandomForestRegressor(random_state=0, n_estimators=200,
+                                               max_depth=20,
+                                               n_jobs=-1))))
+    models.append(('GBR', MultiOutputRegressor(GradientBoostingRegressor(random_state=0))))
+    models.append(('LGB', MultiOutputRegressor(LGBMRegressor(random_state=0, n_estimators=200,
+                                        max_depth=20))))
+    models.append(('XGB', MultiOutputRegressor(XGBRegressor(random_state=0, n_estimators=200,
+                                       max_depth=20))))
+    return models
+
+
+def get_clf_models():
     from sklearn.neighbors import KNeighborsClassifier
     from sklearn.svm import SVC
-    from sklearn.naive_bayes import GaussianNB
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.linear_model import SGDClassifier
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
     import lightgbm as lgb
     import xgboost as xgb
-    from catboost import CatBoostClassifier
 
     models = []
     models.append(('KNN', KNeighborsClassifier(n_neighbors=20)))
     models.append(('SVM', SVC(kernel='linear', random_state=0,
                               C=63.513891775842986,
                               gamma=76.1465194934807,
-                              degree= 0.4300244876201068)))
-    #models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
-    #models.append(('NB', GaussianNB()))
-    #models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
-    #models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=0)))
+                              degree=0.4300244876201068)))
+    # models.append(('KSVM', SVC(kernel='rbf', random_state=0)))
+    # models.append(('NB', GaussianNB()))
+    # models.append(('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)))
+    # models.append(('SGD', SGDClassifier(max_iter=1000, tol=1e-3, random_state=0)))
     models.append(("RF", RandomForestClassifier(n_estimators=200,
                                                 max_depth=20,
                                                 n_jobs=-1,
@@ -51,10 +83,10 @@ def get_models():
     models.append(("LGB", lgb.LGBMClassifier(
         random_state=0,
         max_depth=20,
-        #objective='binary',
-        #metric='binary_logloss',
+        # objective='binary',
+        # metric='binary_logloss',
         n_estimators=200,
-        #num_leaves=300
+        # num_leaves=300
     )))
     # models.append(("CB", CatBoostClassifier(
     #     depth=10,
@@ -75,7 +107,7 @@ def map_results_to_df(results):
     return results_df
 
 
-def plot_to_compare_experiments(results_total, metric="test_balanced_accuracy", figsize=(25, 10), use_pointplot=False):
+def plot_to_compare_experiments(results_total, metric="balanced_accuracy", figsize=(25, 10), use_pointplot=False):
     row_size, column_size = len(results_total) // 4 + 1, 3
     idx = 0
     fig, ax_rows = plt.subplots(len(results_total), figsize=figsize)
@@ -108,109 +140,144 @@ def plot_experiment_results(exp_name, results, figsize=(25, 10)):
     results_df = map_results_to_df(results)
     fig, (ax1, ax2) = plt.subplots(2, 3, figsize=figsize)
 
-    ax = sns.boxplot(x="model", y="test_balanced_accuracy", data=results_df, ax=ax1[0]).set_title("balanced_accuracy")
-    ax = sns.boxplot(x="model", y="test_precision", data=results_df, ax=ax1[1]).set_title("precision")
-    ax = sns.boxplot(x="model", y="test_recall", data=results_df, ax=ax1[2]).set_title("recall")
+    ax = sns.boxplot(x="model",
+                     y="balanced_accuracy",
+                     data=results_df,
+                     ax=ax1[0]).set_title("balanced_accuracy")
+    ax = sns.boxplot(x="model",
+                     y="precision",
+                     data=results_df,
+                     ax=ax1[1]).set_title("precision")
+    ax = sns.boxplot(x="model",
+                     y="recall",
+                     data=results_df,
+                     ax=ax1[2]).set_title("recall")
 
     ax = sns.pointplot(data=results_df,
-                       kind="point", x="season_test", y="test_balanced_accuracy", hue="model", ax=ax2[0]).set_title(
+                       kind="point",
+                       x="season_test",
+                       y="balanced_accuracy",
+                       hue="model",
+                       ax=ax2[0]).set_title(
         "balanced_accuracy")
+
     ax = sns.pointplot(data=results_df,
-                       kind="point", x="season_test", y="test_precision", hue="model", ax=ax2[1]).set_title(
+                       kind="point",
+                       x="season_test",
+                       y="precision",
+                       hue="model", ax=ax2[1]).set_title(
         "precision")
+
     ax = sns.pointplot(data=results_df,
-                       kind="point", x="season_test", y="test_recall", hue="model", ax=ax2[2]).set_title("recall")
+                       kind="point",
+                       x="season_test",
+                       y="recall",
+                       hue="model",
+                       ax=ax2[2]).set_title("recall")
     # fig.savefig(f"./plots/{exp_name}_exp.png")
     return results_df
 
 
-# def objective(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False
-#                    , verbose=False, trial: Trial, fast_check=True, target_meter=0, return_info=False):
-#     # Evaluate each model in turn
-#     results = []
-#     names = []
-#     print("Running experiment", exp_name)
-#     for name, model in models:
-#         cv_results = {
-#             "test_balanced_accuracy": [],
-#             "test_precision": [],
-#             "test_recall": [],
-#             "test_f1": [],
-#             "test_roc_auc": [],
-#         }
-#         cv_results["season_train"] = []
+def calculate_clf_metrics(y_true, y_pred):
+    from sklearn.metrics import precision_score, \
+        recall_score, \
+        balanced_accuracy_score, \
+        f1_score, \
+        roc_auc_score
+    cv_results = {}
+    precision = precision_score(y_true, y_pred)
+    cv_results["precision"] = precision
 
-def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, scale=False
-                   , verbose=False):
-    # Evaluate each model in turn
+    balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
+    cv_results["balanced_accuracy"] = balanced_accuracy
+
+    recall = recall_score(y_true, y_pred, average='weighted')
+    cv_results["recall"] = recall
+
+    f1 = f1_score(y_true, y_pred, average='weighted')
+    cv_results["f1"] = f1
+
+    roc_auc = roc_auc_score(y_true, y_pred, average='weighted')
+    cv_results["roc_auc"] = roc_auc
+
+    return cv_results
+
+
+def rmsle(y_true, y_pred):
+    from sklearn.metrics import mean_squared_log_error
+    return np.sqrt(mean_squared_log_error(y_true, y_pred))
+
+
+def rmse(y_true, y_pred):
+    from sklearn.metrics import mean_squared_error
+    return np.sqrt(mean_squared_error(y_true, y_pred))
+
+
+def calculate_reg_metrics(y_true, y_pred):
+    from sklearn.metrics import mean_absolute_error, \
+        mean_squared_error, mean_squared_log_error
+
+    cv_results = {}
+    mae = mean_absolute_error(y_true=y_true, y_pred=y_pred)
+    cv_results["mae"] = mae
+
+    mse = mean_squared_error(y_true=y_true, y_pred=y_pred)
+    cv_results["mse"] = mse
+
+    msle = mean_squared_log_error(y_true=y_true, y_pred=y_pred)
+    cv_results["msle"] = msle
+
+    rmsle_score = rmsle(y_true=y_true, y_pred=y_pred)
+    cv_results["rmsle"] = rmsle_score
+
+    rmse_score = rmse(y_true, y_pred)
+    cv_results["rmse"] = rmse_score
+
+    return cv_results
+
+
+def print_exp_progress(result):
+    pp.pprint(result)
+
+
+def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
+                   preprocessor=None,
+                   print_exp_progress=None,
+                   calculate_metrics_func=calculate_clf_metrics,
+                   reshape_y = True
+                   ):
     results = []
     names = []
     print("Running experiment", exp_name)
-    for name, model in models:
-        cv_results = {
-            "test_balanced_accuracy": [],
-            "test_precision": [],
-            "test_recall": [],
-            "test_f1": [],
-            "test_roc_auc": [],
-        }
+    for name, current_model in models:
+        cv_results = defaultdict(list)
 
-        cv_results["season_train"] = []
         for train_idx, test_idx in folds:
-            if scale:
-                X[train_idx], X[test_idx] = utils.feature_scaling(X[train_idx], X[test_idx], 5)
-
+            if preprocessor is None:
+                model = Pipeline(steps=[('preprocessor', preprocessor),
+                                   ('model', current_model)])
+            else:
+                model = Pipeline(steps=[('model', current_model)])
             X_train, X_test = X[train_idx], X[test_idx]
-            y_train, y_test = y[train_idx].ravel(), y[test_idx].ravel()
+            if reshape_y:
+                y_train, y_test = y[train_idx].ravel(), y[test_idx].ravel()
+            else:
+                y_train, y_test = y[train_idx], y[test_idx]
             y_true = y_test
             fit_info = model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-            precision = precision_score(y_true, y_pred)
-            cv_results["test_precision"].append(precision)
 
-            balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
-            cv_results["test_balanced_accuracy"].append(balanced_accuracy)
-
-            recall = recall_score(y_true, y_pred, average='weighted')
-            cv_results["test_recall"].append(recall)
-
-            f1 = f1_score(y_true, y_pred, average='weighted')
-            cv_results["test_f1"].append(f1)
-
-            roc_auc = roc_auc_score(y_true, y_pred, average='weighted')
-            cv_results["test_roc_auc"].append(roc_auc)
+            fold_metric_results = calculate_metrics_func(y_true, y_pred)
+            for key, value in fold_metric_results.items():
+                cv_results[key].append(value)
 
         exp_result = {
             "exp_name": exp_name,
             "model": name,
-            "precision_mean": np.mean(cv_results["test_precision"]),
-            "precision_std": np.std(cv_results["test_precision"]),
-            "balanced_accuracy_mean": np.mean(cv_results["test_balanced_accuracy"]),
-            "balanced_accuracy_std": np.std(cv_results["test_balanced_accuracy"]),
-            "recall_mean": np.mean(cv_results["test_recall"]),
-            "recall_std": np.std(cv_results["test_recall"]),
-            "f1_mean": np.mean(cv_results["test_f1"]),
-            "f1_std": np.std(cv_results["test_f1"]),
-            "roc_auc_mean": np.mean(cv_results["test_roc_auc"]),
-            "roc_auc_std": np.std(cv_results["test_roc_auc"]),
+            **agg_metrics(cv_results.keys(), cv_results)
         }
+
         exp_results.append(exp_result)
-        if verbose:
-            print(f'{name}')
-            print(
-                f'balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
-                f' - {np.std(cv_results["test_balanced_accuracy"])}')
-            print(f'precision: {np.mean(cv_results["test_precision"])}'
-                  f' - {np.std(cv_results["test_precision"])}')
-            print(f'recall: {np.mean(cv_results["test_recall"])}'
-                  f' - {np.std(cv_results["test_recall"])}')
-            print(f'f1: {np.mean(cv_results["test_f1"])} - {np.std(cv_results["test_f1"])}')
-            print(f'roc_auc: {np.mean(cv_results["test_roc_auc"])}'
-                  f' - {np.std(cv_results["test_roc_auc"])}')
-        # else:
-        #     print(
-        #         f'{name}: balanced_accuracy: {np.mean(cv_results["test_balanced_accuracy"])}'
-        #         f' - {np.std(cv_results["test_balanced_accuracy"])}')
 
         cv_results["model"] = [name] * len(folds)
         cv_results["season_train"] = train_seasons
@@ -222,6 +289,45 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y, s
     return names, results
 
 
+def agg_metrics(metrics, results):
+    metric_agg = {}
+    for metric in metrics:
+        metric_agg[metric + "_mean"] = np.mean(results[metric])
+        metric_agg[metric + "_std"] = np.std(results[metric])
+    return metric_agg
+
+
 if __name__ == '__main__':
-    results_total = utils.deserialize_object("results_total")
-    plot_to_compare_experiments(results_total)
+    import model.config as model_config
+    import model.train as train
+    from sklearn.compose import ColumnTransformer
+    df = utils.deserialize_object("df")
+
+    num_pipeline = Pipeline([
+        ('std_scaler', StandardScaler())
+    ])
+
+    data_pipeline = ColumnTransformer([
+        ('numerical', num_pipeline, model_config.X_NUM_COLS)
+    ])
+    data_pipeline.fit_transform(df[model_config.X_NUM_COLS])
+    #scaled_features = StandardScaler().fit_transform(df[model_config.X_NUM_COLS].values)
+
+
+    exp_prefix = "reg"
+    exp_group_name = "reg_exp"
+    reg_results_total = []
+    exp_results = []
+    exp_X_columns = model_config.X_COLUMNS
+    exp_y_columns = model_config.Y_COLUMNS[:-1]
+    sscv = utils.SeasonSeriesSplit(data_processed)
+    reg_models = get_reg_models()
+    experiment_name = f"{exp_prefix}1_season"
+    folds, train_seasons, test_seasons = sscv.split(train_size=1, test_size=1)
+    X, y = train.X_y_values(df, exp_X_columns, exp_y_columns)
+
+    params = (
+    experiment_name, reg_models, folds, train_seasons, test_seasons, X, y, StandardScaler(), None
+    ,calculate_reg_metrics, False)
+    names, results = run_experiment(*params)
+
