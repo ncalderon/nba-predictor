@@ -36,6 +36,9 @@ class SeasonSeriesSplit:
                     (group[start:end].index.values, season + q - 0.25)
                 )
 
+    def get_df(self):
+        return self.df
+
     def split(self, train_size=1, test_size=1):
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
         seasons = self.df.SEASON.unique()

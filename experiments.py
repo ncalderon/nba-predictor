@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -243,8 +244,7 @@ def print_exp_progress(result):
 def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
                    preprocessor=None,
                    print_exp_progress=None,
-                   calculate_metrics_func=calculate_clf_metrics,
-                   reshape_y = True
+                   calculate_metrics_func=calculate_clf_metrics
                    ):
     results = []
     names = []
@@ -253,18 +253,15 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
         cv_results = defaultdict(list)
 
         for train_idx, test_idx in folds:
-            if preprocessor is None:
-                model = Pipeline(steps=[('preprocessor', preprocessor),
-                                   ('model', current_model)])
-            else:
-                model = Pipeline(steps=[('model', current_model)])
-            X_train, X_test = X[train_idx], X[test_idx]
-            if reshape_y:
-                y_train, y_test = y[train_idx].ravel(), y[test_idx].ravel()
-            else:
-                y_train, y_test = y[train_idx], y[test_idx]
+            X_train, X_test = X.loc[train_idx], X.loc[test_idx]
+            y_train, y_test = y.loc[train_idx], y.loc[test_idx]
             y_true = y_test
-            fit_info = model.fit(X_train, y_train)
+
+            pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                                    ('model', current_model)])
+            #model = TransformedTargetRegressor(regressor=pipeline, transformer=StandardScaler())
+            model = pipeline
+            fit_info = model.fit(X_train, y_train.values.ravel())
             y_pred = model.predict(X_test)
 
             fold_metric_results = calculate_metrics_func(y_true, y_pred)
@@ -300,34 +297,34 @@ def agg_metrics(metrics, results):
 if __name__ == '__main__':
     import model.config as model_config
     import model.train as train
-    from sklearn.compose import ColumnTransformer
+
     df = utils.deserialize_object("df")
 
     num_pipeline = Pipeline([
         ('std_scaler', StandardScaler())
     ])
 
-    data_pipeline = ColumnTransformer([
+    preprocessor = ColumnTransformer([
         ('numerical', num_pipeline, model_config.X_NUM_COLS)
     ])
-    data_pipeline.fit_transform(df[model_config.X_NUM_COLS])
+    preprocessor.fit_transform(df)
     #scaled_features = StandardScaler().fit_transform(df[model_config.X_NUM_COLS].values)
 
 
-    exp_prefix = "reg"
-    exp_group_name = "reg_exp"
-    reg_results_total = []
-    exp_results = []
-    exp_X_columns = model_config.X_COLUMNS
-    exp_y_columns = model_config.Y_COLUMNS[:-1]
-    sscv = utils.SeasonSeriesSplit(data_processed)
-    reg_models = get_reg_models()
-    experiment_name = f"{exp_prefix}1_season"
-    folds, train_seasons, test_seasons = sscv.split(train_size=1, test_size=1)
-    X, y = train.X_y_values(df, exp_X_columns, exp_y_columns)
-
-    params = (
-    experiment_name, reg_models, folds, train_seasons, test_seasons, X, y, StandardScaler(), None
-    ,calculate_reg_metrics, False)
-    names, results = run_experiment(*params)
+    # exp_prefix = "reg"
+    # exp_group_name = "reg_exp"
+    # reg_results_total = []
+    # exp_results = []
+    # exp_X_columns = model_config.X_COLUMNS
+    # exp_y_columns = model_config.Y_COLUMNS[:-1]
+    # sscv = utils.SeasonSeriesSplit(data_processed)
+    # reg_models = get_reg_models()
+    # experiment_name = f"{exp_prefix}1_season"
+    # folds, train_seasons, test_seasons = sscv.split(train_size=1, test_size=1)
+    # X, y = train.X_y_values(df, exp_X_columns, exp_y_columns)
+    #
+    # params = (
+    # experiment_name, reg_models, folds, train_seasons, test_seasons, X, y, StandardScaler(), None
+    # ,calculate_reg_metrics, False)
+    # names, results = run_experiment(*params)
 
