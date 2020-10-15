@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 import pickle
 
+import numpy as np
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
 from pandas import DataFrame
 
 import model.dataset.config as config
-
+import model.config as model_config
 
 def save_results(name, results):
     experiments_file = open(f"{config.DATA_PATH}{name}_experiment_results.pkl", "wb")
@@ -103,6 +106,29 @@ def feature_scaling(X_train, X_test, start):
     X_test[:, start:] = sc.transform(X_test[:, start:])
     return X_train, X_test
 
+
+def scale_X(X, y, train_idx, test_idx):
+    sc = StandardScaler()
+    X_transformed = sc.fit_transform(X[model_config.X_NUM_COLS].loc[train_idx], y.loc[train_idx])
+    X_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[train_idx].values
+    X_train_transformed = np.concatenate((X_transformed, X_ordinal_vals), axis=1)
+
+    X_test_transformed = sc.transform(X[model_config.X_NUM_COLS].loc[test_idx])
+    X_test_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[test_idx].values
+    X_test_transformed = np.concatenate((X_test_transformed, X_test_ordinal_vals), axis=1)
+    return X_train_transformed, X_test_transformed
+
+
+def scale_Y(X, train_idx, test_idx):
+    sc = StandardScaler()
+    X_transformed = sc.fit_transform(X[model_config.X_NUM_COLS].loc[train_idx])
+    X_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[train_idx].values
+    X_train_transformed = np.concatenate((X_transformed, X_ordinal_vals), axis=1)
+
+    X_test_transformed = sc.transform(X[model_config.X_NUM_COLS].loc[test_idx])
+    X_test_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[test_idx].values
+    X_test_transformed = np.concatenate((X_test_transformed, X_test_ordinal_vals), axis=1)
+    return X_train_transformed, X_test_transformed
 
 def serialize_object(filename, obj):
     pickle.dump(obj, open(f"data/{filename}.p", "wb"))

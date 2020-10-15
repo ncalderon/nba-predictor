@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.compose import ColumnTransformer
+from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -13,6 +13,7 @@ import utils as utils
 
 pp = pprint.PrettyPrinter(width=41, compact=True)
 exp_results = []
+reg_exp_results = []
 visualizers = []
 
 
@@ -225,11 +226,11 @@ def calculate_reg_metrics(y_true, y_pred):
     mse = mean_squared_error(y_true=y_true, y_pred=y_pred)
     cv_results["mse"] = mse
 
-    msle = mean_squared_log_error(y_true=y_true, y_pred=y_pred)
-    cv_results["msle"] = msle
+    #msle = mean_squared_log_error(y_true=y_true, y_pred=y_pred)
+    #cv_results["msle"] = msle
 
-    rmsle_score = rmsle(y_true=y_true, y_pred=y_pred)
-    cv_results["rmsle"] = rmsle_score
+    #rmsle_score = rmsle(y_true=y_true, y_pred=y_pred)
+    #cv_results["rmsle"] = rmsle_score
 
     rmse_score = rmse(y_true, y_pred)
     cv_results["rmse"] = rmse_score
@@ -243,8 +244,9 @@ def print_exp_progress(result):
 
 def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
                    preprocessor=None,
-                   print_exp_progress=None,
-                   calculate_metrics_func=calculate_clf_metrics
+                   #print_exp_progress=None,
+                   calculate_metrics_func=calculate_clf_metrics,
+                   algorithm_type='clf'
                    ):
     results = []
     names = []
@@ -254,14 +256,18 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
 
         for train_idx, test_idx in folds:
             X_train, X_test = X.loc[train_idx], X.loc[test_idx]
+            #X_train, X_test = utils.scale_X(X, y, train_idx, test_idx)
             y_train, y_test = y.loc[train_idx], y.loc[test_idx]
             y_true = y_test
 
-            pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+            pipeline = Pipeline(steps=[
+                                    ('preprocessor', preprocessor),
                                     ('model', current_model)])
-            #model = TransformedTargetRegressor(regressor=pipeline, transformer=StandardScaler())
-            model = pipeline
-            fit_info = model.fit(X_train, y_train.values.ravel())
+            if algorithm_type == 'reg':
+                model = TransformedTargetRegressor(regressor=pipeline, transformer=StandardScaler())
+            else:
+                model = pipeline
+            fit_info = model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
             fold_metric_results = calculate_metrics_func(y_true, y_pred)
@@ -274,7 +280,10 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             **agg_metrics(cv_results.keys(), cv_results)
         }
 
-        exp_results.append(exp_result)
+        if algorithm_type == 'reg':
+            reg_exp_results.append(exp_result)
+        else:
+            exp_results.append(exp_result)
 
         cv_results["model"] = [name] * len(folds)
         cv_results["season_train"] = train_seasons
@@ -300,16 +309,36 @@ if __name__ == '__main__':
 
     df = utils.deserialize_object("df")
 
+    exp_prefix = "reg"
+    exp_group_name = "reg_exp"
+    reg_results_total = []
+    exp_results = []
+    exp_X_columns = model_config.X_COLUMNS
+    exp_y_columns = model_config.Y_COLUMNS[:-1]
+
+    reg_models = get_reg_models()
+
+    sscv = utils.SeasonSeriesSplit(df)
+    df_sscv = sscv.get_df()
+    X = df_sscv[exp_X_columns]
+    y = df_sscv[exp_y_columns]
+
+    experiment_name = f"{exp_prefix}scaled_data"
+
     num_pipeline = Pipeline([
         ('std_scaler', StandardScaler())
     ])
-
     preprocessor = ColumnTransformer([
         ('numerical', num_pipeline, model_config.X_NUM_COLS)
-    ])
-    preprocessor.fit_transform(df)
-    #scaled_features = StandardScaler().fit_transform(df[model_config.X_NUM_COLS].values)
+    ], remainder='passthrough')
+    # transformed_data = preprocessor.fit_transform(df)
 
+    folds, train_seasons, test_seasons = sscv.split(train_size=1, test_size=1)
+    params = (experiment_name, reg_models, folds, train_seasons, test_seasons, X, y, preprocessor
+              , calculate_reg_metrics, 'reg'
+              )
+    names, results = run_experiment(*params)
+    #results_total.append((experiment_name, results))
 
     # exp_prefix = "reg"
     # exp_group_name = "reg_exp"
