@@ -205,16 +205,6 @@ def calculate_clf_metrics(y_true, y_pred):
     return cv_results
 
 
-def rmsle(y_true, y_pred):
-    from sklearn.metrics import mean_squared_log_error
-    return np.sqrt(mean_squared_log_error(y_true, y_pred))
-
-
-def rmse(y_true, y_pred):
-    from sklearn.metrics import mean_squared_error
-    return np.sqrt(mean_squared_error(y_true, y_pred))
-
-
 def calculate_reg_metrics(y_true, y_pred):
     from sklearn.metrics import mean_absolute_error, \
         mean_squared_error, mean_squared_log_error
@@ -225,15 +215,6 @@ def calculate_reg_metrics(y_true, y_pred):
 
     mse = mean_squared_error(y_true=y_true, y_pred=y_pred)
     cv_results["mse"] = mse
-
-    #msle = mean_squared_log_error(y_true=y_true, y_pred=y_pred)
-    #cv_results["msle"] = msle
-
-    #rmsle_score = rmsle(y_true=y_true, y_pred=y_pred)
-    #cv_results["rmsle"] = rmsle_score
-
-    rmse_score = rmse(y_true, y_pred)
-    cv_results["rmse"] = rmse_score
 
     return cv_results
 
