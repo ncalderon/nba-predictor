@@ -3,7 +3,23 @@ import pandas as pd
 import model.dataset.config as config
 
 
-def __games_with_nickname_column(games, teams):
+def __add_team_name_column(games, teams):
+    """
+    To games dataframe:
+
+    - Add team name columns
+    - Drop team ID columns
+    - Set GAME_ID as INDEX
+    - Sort by GAME_DATE and GAME_ID
+
+    :param games:
+    :param teams:
+
+    :return:
+
+    A new dataframe with those changes
+
+    """
     games_df = games.reset_index()
     teams_df = teams.drop(columns=["NICKNAME", "CITY"])
     result_df = games_df.merge(teams_df, left_on='HOME_TEAM_ID', right_on='TEAM_ID', suffixes=['_games', '_teams'])
@@ -18,11 +34,27 @@ def __games_with_nickname_column(games, teams):
 
 
 def load_teams():
+    """
+    Load teams processed dataset as a dataframe
+    :return:
+
+    teams DataFrame
+    """
     teams = pd.read_feather(config.TEAMS_PROCESSED_DS)
     return teams
 
 
 def load_games():
+    """
+    1. Load raw games dataset as it was downloaded from https://www.kaggle.com/nathanlauga/nba-games
+    2. Sort rows by GAME_DATE and GAME_ID
+    3. Load teams
+    4. Add team name column to games DataFrame
+
+    :return:
+
+    Games DataFrame
+    """
     games = pd.read_csv(config.GAMES_DS,
                         usecols=["GAME_ID", 'GAME_DATE_EST', 'HOME_TEAM_ID', 'VISITOR_TEAM_ID',
                                  'SEASON', 'PTS_home', 'FG_PCT_home', 'FT_PCT_home',
@@ -32,16 +64,31 @@ def load_games():
                         , infer_datetime_format=True, index_col="GAME_ID")
     games.sort_values(by=['GAME_DATE_EST', 'GAME_ID'], inplace=True)
     teams = load_teams()
-    games = __games_with_nickname_column(games, teams)
+    games = __add_team_name_column(games, teams)
     return games
 
 
 def load_seasons():
+    """
+    Load season processed dataset as a dataframe
+
+    :return:
+
+    seasons dataframe
+    """
     seasons = pd.read_feather(config.SEASONS_PROCESSED_DS)
     return seasons
 
 
 def load_rankings():
+    """
+    Load rankings dataset. This dataset has the standing position of each team
+    by each date of each season
+
+    :return:
+
+    ranking DataFrame
+    """
     rankings = pd.read_csv(config.RANKING_DS, parse_dates=["STANDINGSDATE"],
                            usecols=['TEAM_ID', 'LEAGUE_ID', 'SEASON_ID', 'STANDINGSDATE', 'CONFERENCE',
                                     'TEAM', 'G', 'W', 'L', 'W_PCT', 'HOME_RECORD', 'ROAD_RECORD'],
@@ -51,7 +98,22 @@ def load_rankings():
     return rankings
 
 
-def __get_season_games(games, seasons):
+def __create_season_games_df(games, seasons):
+    """
+    Filter out of the games dataframe these games:
+
+    - Playoff games
+    - Preseason games
+
+    So, create a DataFrame with only season games
+
+    :param games:
+    :param seasons:
+    :return:
+
+    season_gaems DataFrame
+
+    """
     row = seasons.iloc[0]
     season_games = games[(games.SEASON == row.SEASON) & \
                          (games.GAME_DATE_EST >= row.SEASON_START) & \
@@ -67,5 +129,11 @@ def __get_season_games(games, seasons):
     return season_games
 
 
-def get_season_games():
-    return __get_season_games(load_games(), load_seasons())
+def create_season_games_df():
+    """
+    Load games and teams dataframe and then call create_seasongames
+
+    :return:
+    season_games DataFrame
+    """
+    return __create_season_games_df(load_games(), load_seasons())

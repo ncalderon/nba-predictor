@@ -4,7 +4,7 @@ import model.dataset.config as config
 import pandas as pd
 from pandas import DataFrame
 from tqdm import tqdm
-import data as data
+import model.dataset.data as data
 
 
 def __get_balance_last_games(team_id: int, last_games: DataFrame):
@@ -251,7 +251,7 @@ def __create_dataframe(start: int = 2016, end: int = 2018):
     print("Load datasets: teams, seasons, ranking")
     global season_games, rankings
     rankings = data.load_rankings()
-    season_games = data.get_season_games()
+    season_games = data.create_season_games_df()
     query = ((season_games.SEASON >= start) & (season_games.SEASON <= end))
     df: DataFrame = pd.DataFrame(
         __get_games_matchup(
