@@ -10,7 +10,7 @@ DATA_PATH = 'data'
 SEASONS_FILE = f"{DATA_PATH}/seasons.csv"
 SEASONS_PROCESSED_FILE = f"{DATA_PATH}/seasons.processed.feather"
 START_SEASON = 2002
-END_SEASON = datetime.now().year - 1
+END_SEASON = datetime.now().year
 
 
 def __fetch_season_info(year):
@@ -66,7 +66,8 @@ def create_seasons_dataset():
     seasons = []
     for year in range(START_SEASON, END_SEASON):
         row = __create_row_from_content(__fetch_season_info(year), year)
-        row["SEASON"] = year
+        row["SEASON_YEAR"] = year
+        row["SEASON"] = fr"{year}-{str(year + 1)[-2:]}"
         seasons.append(row)
         print(f"Season year: {year} processed. Values: {row}")
 
