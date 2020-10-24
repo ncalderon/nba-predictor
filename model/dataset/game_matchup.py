@@ -136,25 +136,6 @@ def get_last_season_games(previous_games, season_year, home_team_id, visitor_tea
     return home_team_season_games, visitor_team_season_games
 
 
-def __filter_previous_games_legacy(previous_games, season_year, home_team_id, visitor_team_id):
-    query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == home_team_id) |
-                                                     (previous_games.VISITOR_TEAM_ID == home_team_id
-                                                      ))
-    home_team_season_games = previous_games[query]
-    if not len(home_team_season_games) > 10:
-        home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
-                                                                                  home_team_id, visitor_team_id)
-    else:
-        query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == visitor_team_id) |
-                                                         (previous_games.VISITOR_TEAM_ID == visitor_team_id)
-                                                         )
-        visitor_team_season_games = previous_games[query]
-        if not len(visitor_team_season_games) > 10:
-            home_team_season_games, visitor_team_season_games = get_last_season_games(previous_games, season_year,
-                                                                                      home_team_id, visitor_team_id)
-    return home_team_season_games, visitor_team_season_games
-
-
 def __filter_previous_games(previous_games, season_year, home_team_id, visitor_team_id):
     skip = True
     query = previous_games.SEASON.eq(season_year) & ((previous_games.HOME_TEAM_ID == home_team_id) |
