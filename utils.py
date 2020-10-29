@@ -13,6 +13,7 @@ import model.dataset.config as config
 
 pp = pprint.PrettyPrinter(width=41, compact=True)
 
+
 class SeasonSeriesSplit:
     df: DataFrame
     season_quarters = []
@@ -149,6 +150,7 @@ def plot_to_compare_experiments(results_total, metric="balanced_accuracy", figsi
             a.set_title(result[0])
             a.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
             idx += 1
+
 
 def print_exp_progress(result):
     pp.pprint(result)

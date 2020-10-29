@@ -13,6 +13,9 @@ GAMES_DS = f"{DATA_PATH}/games.csv"
 GAMES_MATCHUP_DS = f"{DATA_PATH}/games_machup.feather"
 GAMES_MATCHUP_DS_CSV = f"{DATA_PATH}/games_machup.csv"
 
+RAW_SEASON_GAMES_DS = f"{DATA_PATH}/raw_season_games.feather"
+RAW_SEASON_GAMES_DS_CSV = f"{DATA_PATH}/raw_season_games.csv"
+
 SEASON_GAMES_DS = f"{DATA_PATH}/season_games.feather"
 SEASON_GAMES_DS_CSV = f"{DATA_PATH}/season_games.csv"
 
