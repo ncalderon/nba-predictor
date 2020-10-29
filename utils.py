@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 import pickle
+import pprint
 
 import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from pandas import DataFrame
 
 import model.dataset.config as config
 
+pp = pprint.PrettyPrinter(width=41, compact=True)
 
 class SeasonSeriesSplit:
     df: DataFrame

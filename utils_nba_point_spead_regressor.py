@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 import utils as utils
 
-pp = pprint.PrettyPrinter(width=41, compact=True)
+
 exp_results = []
 reg_exp_results = []
 visualizers = []
