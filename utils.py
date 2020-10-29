@@ -2,17 +2,12 @@
 import pickle
 
 import numpy as np
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
-from pandas import DataFrame
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 import model.dataset.config as config
-import model.config as model_config
-
-def save_results(name, results):
-    experiments_file = open(f"{config.DATA_PATH}{name}_experiment_results.pkl", "wb")
-    pickle.dump(results, experiments_file)
-    experiments_file.close()
 
 
 class SeasonSeriesSplit:
@@ -99,43 +94,61 @@ class SeasonSeriesSplit:
         return folds, train_seasons, test_seasons
 
 
-def feature_scaling(X_train, X_test, start):
-    from sklearn.preprocessing import StandardScaler
-    sc = StandardScaler()
-    X_train[:, start:] = sc.fit_transform(X_train[:, start:])
-    X_test[:, start:] = sc.transform(X_test[:, start:])
-    return X_train, X_test
-
-
-def scale_X(X, y, train_idx, test_idx):
-    sc = StandardScaler()
-    X_transformed = sc.fit_transform(X[model_config.X_NUM_COLS].loc[train_idx], y.loc[train_idx])
-    X_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[train_idx].values
-    X_train_transformed = np.concatenate((X_transformed, X_ordinal_vals), axis=1)
-
-    X_test_transformed = sc.transform(X[model_config.X_NUM_COLS].loc[test_idx])
-    X_test_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[test_idx].values
-    X_test_transformed = np.concatenate((X_test_transformed, X_test_ordinal_vals), axis=1)
-    return X_train_transformed, X_test_transformed
-
-
-def scale_Y(X, train_idx, test_idx):
-    sc = StandardScaler()
-    X_transformed = sc.fit_transform(X[model_config.X_NUM_COLS].loc[train_idx])
-    X_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[train_idx].values
-    X_train_transformed = np.concatenate((X_transformed, X_ordinal_vals), axis=1)
-
-    X_test_transformed = sc.transform(X[model_config.X_NUM_COLS].loc[test_idx])
-    X_test_ordinal_vals = X[model_config.X_ORDINAL_COLS].loc[test_idx].values
-    X_test_transformed = np.concatenate((X_test_transformed, X_test_ordinal_vals), axis=1)
-    return X_train_transformed, X_test_transformed
-
 def serialize_object(filename, obj):
     pickle.dump(obj, open(f"data/{filename}.p", "wb"))
 
 
 def deserialize_object(filename):
     return pickle.load(open(f"data/{filename}.p", "rb"))
+
+
+def save_results(name, results):
+    experiments_file = open(f"{config.DATA_PATH}{name}_experiment_results.pkl", "wb")
+    pickle.dump(results, experiments_file)
+    experiments_file.close()
+
+
+def map_results_to_df(results):
+    results_df = pd.DataFrame(results[0])
+    for idx, result in enumerate(results[1:]):
+        result_df = pd.DataFrame(result)
+        results_df = pd.concat([results_df, result_df], ignore_index=True)
+    return results_df
+
+
+def agg_metrics(metrics, results):
+    metric_agg = {}
+    for metric in metrics:
+        metric_agg[metric + "_mean"] = np.mean(results[metric])
+        metric_agg[metric + "_std"] = np.std(results[metric])
+    return metric_agg
+
+
+def plot_to_compare_experiments(results_total, metric="balanced_accuracy", figsize=(25, 10), use_pointplot=False):
+    row_size, column_size = len(results_total) // 4 + 1, 3
+    idx = 0
+    fig, ax_rows = plt.subplots(len(results_total), figsize=figsize)
+    fig.suptitle(metric)
+    while idx < len(results_total):
+        for ax_row in ax_rows:
+            if idx >= len(results_total):
+                break
+            result = results_total[idx]
+            results_df = map_results_to_df(result[1])
+
+            if use_pointplot:
+                a = sns.pointplot(data=results_df,
+                                  kind="point", x="season_test", y=metric, hue="model",
+                                  ax=ax_row)
+            else:
+                a = sns.boxplot(x="model", y=metric, data=results_df, ax=ax_row)
+            a.set_xlabel(None)
+            a.set_title(result[0])
+            a.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+            idx += 1
+
+def print_exp_progress(result):
+    pp.pprint(result)
 
 
 if __name__ == '__main__':
