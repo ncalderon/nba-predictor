@@ -7,7 +7,6 @@ import utils
 
 pp = pprint.PrettyPrinter(width=41, compact=True)
 exp_results = []
-reg_exp_results = []
 visualizers = []
 
 

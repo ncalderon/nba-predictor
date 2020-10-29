@@ -1,4 +1,3 @@
-import pprint
 from collections import defaultdict
 
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
@@ -7,9 +6,7 @@ from sklearn.preprocessing import StandardScaler
 
 import utils as utils
 
-
 exp_results = []
-reg_exp_results = []
 visualizers = []
 
 
@@ -17,24 +14,22 @@ def get_reg_models():
     from sklearn.linear_model import LinearRegression
     from sklearn.neighbors import KNeighborsRegressor
     from sklearn.svm import SVR
-    from sklearn.tree import DecisionTreeRegressor
-
     from sklearn.ensemble import RandomForestRegressor
     from lightgbm import LGBMRegressor
     from xgboost import XGBRegressor
-    from sklearn.multioutput import MultiOutputRegressor
 
     models = [
         ('LinearRegression', LinearRegression()),
-        ('KN', KNeighborsRegressor(n_neighbors=20)), ('SVM-rbf', SVR(kernel='rbf')),
+        ('KN', KNeighborsRegressor(n_neighbors=20)),
+        ('SVM-rbf', SVR(kernel='rbf')),
         ('SVM-linear', SVR(kernel='linear')),
-        ('RF', MultiOutputRegressor(RandomForestRegressor(random_state=0, n_estimators=200,
-                                                          max_depth=20,
-                                                          n_jobs=-1))),
-        ('LGB', MultiOutputRegressor(LGBMRegressor(random_state=0, n_estimators=200,
-                                                   max_depth=20))),
-        ('XGB', MultiOutputRegressor(XGBRegressor(random_state=0, n_estimators=200,
-                                                  max_depth=20)))]
+        ('RF', RandomForestRegressor(random_state=0, n_estimators=200,
+                                     max_depth=20,
+                                     n_jobs=-1)),
+        ('LGB', LGBMRegressor(random_state=0, n_estimators=200,
+                              max_depth=20)),
+        ('XGB', XGBRegressor(random_state=0, n_estimators=200,
+                             max_depth=20))]
     return models
 
 
@@ -85,7 +80,7 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             **utils.agg_metrics(cv_results.keys(), cv_results)
         }
 
-        reg_exp_results.append(exp_result)
+        exp_results.append(exp_result)
 
         cv_results["model"] = [name] * len(folds)
         cv_results["season_train"] = train_seasons
