@@ -52,12 +52,6 @@ def calculate_clf_metrics(y_true, y_pred):
     balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
     cv_results["balanced_accuracy"] = balanced_accuracy
 
-    recall = recall_score(y_true, y_pred, average='weighted')
-    cv_results["recall"] = recall
-
-    f1 = f1_score(y_true, y_pred, average='weighted')
-    cv_results["f1"] = f1
-
     roc_auc = roc_auc_score(y_true, y_pred, average='weighted')
     cv_results["roc_auc"] = roc_auc
 

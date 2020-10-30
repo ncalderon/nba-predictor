@@ -179,6 +179,7 @@ X_COLS = [
     'BLK_L10_HOME',
     'TOV_L10_HOME',
     'PLUS_MINUS_L10_HOME',
+
     'W_L_CUM_AWAY',
     'W_L_L10_CUM_AWAY',
     'FG_PCT_ML5_AWAY',

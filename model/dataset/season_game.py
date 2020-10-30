@@ -162,6 +162,8 @@ def create_season_game_df(raw_season_games):
     season_games = season_games.T.drop_duplicates().T
     season_games["HOME_WINS"] = np.where(season_games['WL_HOME'] == 'W', 1, 0)
     season_games["HOME_POINT_SPREAD"] = season_games['PTS_HOME'] - season_games['PTS_AWAY']
+    season_games["SEASON"] = season_games.SEASON_ID.str[-4:].astype(int)
+    season_games["GAME_DATE_EST"] = season_games.GAME_DATE
     # season_games['RANKING_HOME'] = season_games.apply(lambda row: calculate_ranking(row, 'HOME'),
     #                                                   axis=1)
     # season_games['RANKING_AWAY'] = season_games.apply(lambda row: calculate_ranking(row, 'AWAY'),
@@ -177,6 +179,8 @@ def create_season_game_df(raw_season_games):
 
 def load_season_games_dataset():
     season_games = pd.read_feather(config.SEASON_GAMES_DS)
+    season_games['GAME_DATE'] = pd.to_datetime(season_games['GAME_DATE'])
+    season_games['GAME_DATE_EST'] = pd.to_datetime(season_games['GAME_DATE_EST'])
     season_games.set_index(["GAME_ID"], inplace=True)
     season_games.sort_values(by=['GAME_DATE', 'GAME_ID'], inplace=True)
     return season_games
