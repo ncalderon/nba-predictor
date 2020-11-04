@@ -106,6 +106,9 @@ def create_raw_season_games_df():
 
         raw_season_games = pd.concat([raw_season_games, season_games])
 
+    raw_season_games["SEASON"] = raw_season_games.SEASON_ID.str[-4:].astype(int)
+    raw_season_games['LOCATION'] = np.where(raw_season_games.MATCHUP.str.contains('vs.'), 'HOME', 'AWAY')
+
     raw_season_games["UNIQUE_MATCHUP"] = raw_season_games.apply(lambda row: matchup_field_by_id(row, raw_season_games),
                                                                 axis=1)
 
@@ -196,5 +199,5 @@ def load_raw_season_games_dataset():
 
 
 if __name__ == '__main__':
-    # create_raw_season_games_df()
+    #create_raw_season_games_df()
     create_season_game_df(load_raw_season_games_dataset())
