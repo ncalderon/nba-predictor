@@ -102,8 +102,11 @@ def serialize_object(filename, obj):
     pickle.dump(obj, open(f"data/{filename}.p", "wb"))
 
 
-def deserialize_object(filename):
-    return pickle.load(open(f"data/{filename}.p", "rb"))
+def deserialize_object(filename, default=None):
+    try:
+        return pickle.load(open(f"data/{filename}.p", "rb"))
+    except FileNotFoundError:
+        return default
 
 
 def save_results(name, results):
@@ -141,8 +144,9 @@ def plot_to_compare_experiments(results_total, metric="balanced_accuracy", figsi
             results_df = map_results_to_df(result[1])
 
             if use_pointplot:
-                a = sns.pointplot(data=results_df,
-                                  kind="point", x="season_test", y=metric, hue="model",
+                a = sns.lineplot(data=results_df,
+                                 x="season_test", y=metric, hue="model", style="model",
+                                 markers=True, dashes=False,
                                   ax=ax_row)
             else:
                 a = sns.boxplot(x="model", y=metric, data=results_df, ax=ax_row)
