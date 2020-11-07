@@ -94,12 +94,13 @@ def create_raw_season_games_df():
         season_games["W_L"] = np.where(season_games['WL'] == 'W', 1, -1)
 
         season_games_sum = season_games.groupby(by=["TEAM_ID"])[['W_L']] \
-            .expanding().sum().reset_index(level=0)
+            .expanding().sum().groupby(level=0).shift(1).reset_index(level=0)
+        #season_games_sum['W_L'] = season_games_sum['W_L'].fillna(0)
         season_games = pd.merge(season_games, season_games_sum, suffixes=['', '_CUM'],
                                 on=['GAME_ID', 'TEAM_ID'])
 
         season_games_l10_sum = season_games.groupby(by=["TEAM_ID"])[['W_L']] \
-            .rolling(window=10, min_periods=1).sum().reset_index(level=0)
+            .rolling(window=10, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0)
 
         season_games = pd.merge(season_games, season_games_l10_sum, suffixes=['', '_L10_CUM'],
                                 on=['GAME_ID', 'TEAM_ID'])
@@ -115,12 +116,12 @@ def create_raw_season_games_df():
     matchup_season_games_mean = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[
         ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
          'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
-        .rolling(window=5, min_periods=1).mean().reset_index(level=0).reset_index(level=0)
+        .rolling(window=5, min_periods=0).mean().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
     raw_season_games = pd.merge(raw_season_games, matchup_season_games_mean, suffixes=['', '_ML5'],
                                 on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
 
     matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[['W_L']] \
-        .rolling(window=5, min_periods=1).sum().reset_index(level=0).reset_index(level=0)
+        .rolling(window=5, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
     raw_season_games = pd.merge(raw_season_games, matchup_season_games_w_l_cum, suffixes=['', '_ML5'],
                                 on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
 
@@ -143,13 +144,13 @@ def create_season_game_df(raw_season_games):
         season_games_mean = next_season.groupby(by=["TEAM_ID"])[
             ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB',
              'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
-            .expanding().mean().reset_index(level=0)
+            .expanding().mean().groupby(level=0).shift(1).reset_index(level=0)
         next_season = pd.merge(next_season, season_games_mean, suffixes=['', '_MEAN'], on=['GAME_ID', 'TEAM_ID'])
 
         season_l10_games_mean = next_season.groupby(by=["TEAM_ID"])[
             ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
              'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
-            .rolling(window=10, min_periods=1).mean().reset_index(level=0)
+            .rolling(window=10, min_periods=0).mean().groupby(level=0).shift(1).reset_index(level=0)
         next_season = pd.merge(next_season, season_l10_games_mean, suffixes=['', '_L10'], on=['GAME_ID', 'TEAM_ID'])
 
         season_home_rows = next_season[next_season.MATCHUP.str.contains('vs.')]
