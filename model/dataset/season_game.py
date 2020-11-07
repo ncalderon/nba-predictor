@@ -1,76 +1,18 @@
 from nba_api.stats.endpoints import leaguegamelog
 import model.dataset.data as data
 import model.dataset.config as config
-
+import model.config as fields_conf
 import pandas as pd
 import numpy as np
 
 
 def create_calculate_fields(df):
-    fields = ['W_L_CUM_HOME',
-              'W_L_L10_CUM_HOME',
-              'FGM_ML5_HOME',
-              'FGA_ML5_HOME',
-              'FG_PCT_ML5_HOME',
-              'FG3M_ML5_HOME',
-              'FG3A_ML5_HOME',
-              'FG3_PCT_ML5_HOME',
-              'FTM_ML5_HOME',
-              'FTA_ML5_HOME',
-              'FT_PCT_ML5_HOME',
-              'OREB_ML5_HOME',
-              'DREB_ML5_HOME',
-              'REB_ML5_HOME',
-              'AST_ML5_HOME',
-              'STL_ML5_HOME',
-              'BLK_ML5_HOME',
-              'TOV_ML5_HOME',
-              'PF_ML5_HOME',
-              'PTS_ML5_HOME',
-              'PLUS_MINUS_ML5_HOME',
-              'W_L_ML5_HOME',
-              'FGM_MEAN_HOME',
-              'FGA_MEAN_HOME',
-              'FG_PCT_MEAN_HOME',
-              'FG3M_MEAN_HOME',
-              'FG3A_MEAN_HOME',
-              'FG3_PCT_MEAN_HOME',
-              'FTM_MEAN_HOME',
-              'FTA_MEAN_HOME',
-              'FT_PCT_MEAN_HOME',
-              'OREB_MEAN_HOME',
-              'DREB_MEAN_HOME',
-              'REB_MEAN_HOME',
-              'AST_MEAN_HOME',
-              'STL_MEAN_HOME',
-              'BLK_MEAN_HOME',
-              'TOV_MEAN_HOME',
-              'PF_MEAN_HOME',
-              'PTS_MEAN_HOME',
-              'PLUS_MINUS_MEAN_HOME',
-              'FGM_L10_HOME',
-              'FGA_L10_HOME',
-              'FG_PCT_L10_HOME',
-              'FG3M_L10_HOME',
-              'FG3A_L10_HOME',
-              'FG3_PCT_L10_HOME',
-              'FTM_L10_HOME',
-              'FTA_L10_HOME',
-              'FT_PCT_L10_HOME',
-              'OREB_L10_HOME',
-              'DREB_L10_HOME',
-              'REB_L10_HOME',
-              'AST_L10_HOME',
-              'STL_L10_HOME',
-              'BLK_L10_HOME',
-              'TOV_L10_HOME',
-              'PF_L10_HOME',
-              'PTS_L10_HOME',
-              'PLUS_MINUS_L10_HOME']
-
+    fields = fields_conf.X_COLS
+    new_cols = []
     for field in fields:
         df[f'HOME_{field[:-5]}'] = df[field] - df[f'{field[:-5]}_AWAY']
-
+        new_cols.append(f'HOME_{field[:-5]}')
+    return new_cols
 
 def matchup_field_by_id(row, df):
     game_df = df.loc[row.name]

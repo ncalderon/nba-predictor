@@ -1,9 +1,10 @@
-import pprint
 from collections import defaultdict
 
 from sklearn.pipeline import Pipeline
-
+import numpy as np
 import utils
+from boruta import BorutaPy
+import model.config as conf
 
 exp_results = []
 visualizers = []
@@ -22,10 +23,11 @@ def get_clf_models():
         ('LR', LogisticRegression(random_state=0, max_iter=10000))
         , ('KNN', KNeighborsClassifier(n_neighbors=20)),
         ('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)),
-        ('SVM', SVC(kernel='linear', random_state=0)), ("RF", RandomForestClassifier(n_estimators=200,
-                                                                                     max_depth=20,
-                                                                                     n_jobs=-1,
-                                                                                     random_state=0)),
+        ('SVM', SVC(kernel='linear', random_state=0)),
+        ("RF", RandomForestClassifier(n_estimators=200,
+                                      max_depth=20,
+                                      n_jobs=-1,
+                                      random_state=0)),
         ("XGB", xgb.XGBClassifier(
             random_state=0,
             max_depth=20,
@@ -41,9 +43,7 @@ def get_clf_models():
 
 def calculate_clf_metrics(y_true, y_pred):
     from sklearn.metrics import precision_score, \
-        recall_score, \
         balanced_accuracy_score, \
-        f1_score, \
         roc_auc_score
     cv_results = {}
     precision = precision_score(y_true, y_pred)
@@ -56,6 +56,14 @@ def calculate_clf_metrics(y_true, y_pred):
     cv_results["roc_auc"] = roc_auc
 
     return cv_results
+
+
+def feature_selection(model, X_train, y_train):
+    boruta_selector = BorutaPy(model, n_estimators=200, random_state=0)
+    boruta_selector.fit(np.array(X_train), np.array(y_train))
+    boruta_ranking = boruta_selector.ranking_
+    selected_features = np.array(conf.X_NUM_COLS)[boruta_ranking <= 2]
+    return selected_features
 
 
 def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
@@ -71,6 +79,7 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             y_train, y_test = y.loc[train_idx], y.loc[test_idx]
             y_true = y_test
 
+            # feature_selection(model, X_train, y_train)
             pipeline = Pipeline(steps=[
                 ('preprocessor', preprocessor),
                 ('model', current_model)])
@@ -87,8 +96,8 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             "model": name,
             **utils.agg_metrics(cv_results.keys(), cv_results)
         }
-        
-        #print(exp_result)
+
+        # print(exp_result)
 
         exp_results.append(exp_result)
 
