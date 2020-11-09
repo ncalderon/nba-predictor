@@ -7,24 +7,30 @@ import model.dataset.data as data
 
 
 def create_calculate_fields(df):
+    fields = numeric_cols(df)
+
+    new_cols = []
+    for field in fields:
+        df[f'HOME_{field[:-5]}'] = df[f'{field[:-5]}_HOME'] - df[f'{field[:-5]}_AWAY']
+        new_cols.append(f'HOME_{field[:-5]}')
+    return new_cols
+
+
+def numeric_cols(df):
     fields = list(filter(lambda x: x[-4:] in ["HOME", "AWAY"], list(df.columns.unique())))
     fields = list(filter(lambda x: x[:-5] not in [
+        'GAME_ID ',
         'TEAM_ID',
+        'HOME_WINS',
         'TEAM_ABBREVIATION',
         'TEAM_NAME',
+        'GAME_DATE_EST',
         'MATCHUP',
         'WL',
         'MIN', 'W_L', 'SEASON', 'LOCATION', 'UNIQUE_MATCHUP']
                          , fields))
-
-    # fields = list(filter(lambda x: x[:3] not in [
-    #     'W_L'], fields))
-
-    new_cols = []
-    for field in fields:
-        df[f'HOME_{field[:-5]}'] = df[field] - df[f'{field[:-5]}_AWAY']
-        new_cols.append(f'HOME_{field[:-5]}')
-    return new_cols
+    #fields = list(filter(lambda x: x[:3] not in ['W_L'], fields))
+    return fields
 
 
 def matchup_field_by_id(row, df):
@@ -54,11 +60,11 @@ def create_raw_season_games_df():
         season_games = pd.merge(season_games, season_games_sum, suffixes=['', '_CUM'],
                                 on=['GAME_ID', 'TEAM_ID'])
 
-        season_games_l5_sum = season_games.groupby(by=["TEAM_ID"])[['W_L']] \
-            .rolling(window=5, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0)
+        # season_games_l5_sum = season_games.groupby(by=["TEAM_ID"])[['W_L']] \
+        #     .rolling(window=5, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0)
 
-        season_games = pd.merge(season_games, season_games_l5_sum, suffixes=['', '_L5_CUM'],
-                                on=['GAME_ID', 'TEAM_ID'])
+        # season_games = pd.merge(season_games, season_games_l5_sum, suffixes=['', '_L5_CUM'],
+        #                         on=['GAME_ID', 'TEAM_ID'])
 
         season_games_l10_sum = season_games.groupby(by=["TEAM_ID"])[['W_L']] \
             .rolling(window=10, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0)
@@ -74,17 +80,17 @@ def create_raw_season_games_df():
     raw_season_games["UNIQUE_MATCHUP"] = raw_season_games.apply(lambda row: matchup_field_by_id(row, raw_season_games),
                                                                 axis=1)
 
-    matchup_season_games_mean = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[
-        ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
-         'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
-        .rolling(window=5, min_periods=0).mean().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
-    raw_season_games = pd.merge(raw_season_games, matchup_season_games_mean, suffixes=['', '_ML5'],
-                                on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
-
-    matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[['W_L']] \
-        .rolling(window=5, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
-    raw_season_games = pd.merge(raw_season_games, matchup_season_games_w_l_cum, suffixes=['', '_ML5'],
-                                on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
+    # matchup_season_games_mean = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[
+    #     ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
+    #      'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
+    #     .rolling(window=5, min_periods=0).mean().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
+    # raw_season_games = pd.merge(raw_season_games, matchup_season_games_mean, suffixes=['', '_ML5'],
+    #                             on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
+    #
+    # matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[['W_L']] \
+    #     .rolling(window=5, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
+    # raw_season_games = pd.merge(raw_season_games, matchup_season_games_w_l_cum, suffixes=['', '_ML5'],
+    #                             on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
 
     matchup_season_games_mean = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[
         ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
@@ -120,11 +126,11 @@ def create_season_game_df(raw_season_games):
             .expanding().mean().groupby(level=0).shift(1).reset_index(level=0)
         next_season = pd.merge(next_season, season_games_mean, suffixes=['', '_MEAN'], on=['GAME_ID', 'TEAM_ID'])
 
-        season_l5_games_mean = next_season.groupby(by=["TEAM_ID"])[
-            ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
-             'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
-            .rolling(window=5, min_periods=0).mean().groupby(level=0).shift(1).reset_index(level=0)
-        next_season = pd.merge(next_season, season_l5_games_mean, suffixes=['', '_L5'], on=['GAME_ID', 'TEAM_ID'])
+        # season_l5_games_mean = next_season.groupby(by=["TEAM_ID"])[
+        #     ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
+        #      'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'PLUS_MINUS']] \
+        #     .rolling(window=5, min_periods=0).mean().groupby(level=0).shift(1).reset_index(level=0)
+        # next_season = pd.merge(next_season, season_l5_games_mean, suffixes=['', '_L5'], on=['GAME_ID', 'TEAM_ID'])
 
         season_l10_games_mean = next_season.groupby(by=["TEAM_ID"])[
             ['FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
