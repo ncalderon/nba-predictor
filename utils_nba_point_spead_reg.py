@@ -52,7 +52,7 @@ def calculate_reg_metrics(y_true, y_pred):
 
 
 def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
-                   preprocessor=None
+                   preprocessor=None, targetTransformer=None
                    ):
     results = []
     names = []
@@ -73,7 +73,7 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             if preprocessor is None:
                 model = pipeline
             else:
-                model = TransformedTargetRegressor(regressor=pipeline, transformer=StandardScaler())
+                model = TransformedTargetRegressor(regressor=pipeline, transformer=targetTransformer)
 
             fit_info = model.fit(X_train, y_train)
             y_pred = model.predict(X_test)

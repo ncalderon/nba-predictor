@@ -83,6 +83,7 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             pipeline = Pipeline(steps=[
                 ('preprocessor', preprocessor),
                 ('model', current_model)])
+
             model = pipeline
             fit_info = model.fit(X_train, y_train)
             y_pred = model.predict(X_test)

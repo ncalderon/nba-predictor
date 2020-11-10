@@ -152,7 +152,6 @@ def create_season_game_df(raw_season_games):
     season_games["HOME_WINS"] = np.where(season_games['WL_HOME'] == 'W', 1, 0)
     season_games["HOME_POINT_SPREAD"] = season_games['PTS_HOME'] - season_games['PTS_AWAY']
     season_games["PTS"] = season_games['PTS_HOME'] + season_games['PTS_AWAY']
-    season_games["HOME_PLUS_MINUS_ML5"] = season_games['PLUS_MINUS_ML5_HOME'] - season_games['PLUS_MINUS_ML5_AWAY']
     season_games["SEASON"] = season_games.SEASON_ID.str[-4:].astype(int)
     season_games["GAME_DATE_EST"] = season_games.GAME_DATE
     # season_games['RANKING_HOME'] = season_games.apply(lambda row: calculate_ranking(row, 'HOME'),
@@ -186,5 +185,5 @@ def load_raw_season_games_dataset():
 
 
 if __name__ == '__main__':
-    # create_raw_season_games_df()
+    #create_raw_season_games_df()
     create_season_game_df(load_raw_season_games_dataset())
