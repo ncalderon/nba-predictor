@@ -19,10 +19,10 @@ def get_reg_models():
     from xgboost import XGBRegressor
 
     models = [
-        ('LinearRegression', LinearRegression()),
-        ('KN', KNeighborsRegressor(n_neighbors=20)),
-        ('SVM-rbf', SVR(kernel='rbf')),
-        ('SVM-linear', SVR(kernel='linear')),
+        ('LR', LinearRegression()),
+        ('KNN', KNeighborsRegressor(n_neighbors=20)),
+        # ('SVM-rbf', SVR(kernel='rbf')),
+        ('SVM', SVR(kernel='linear')),
         ('RF', RandomForestRegressor(random_state=0, n_estimators=200,
                                      max_depth=20,
                                      n_jobs=-1)),

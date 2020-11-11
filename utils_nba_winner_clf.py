@@ -20,7 +20,7 @@ def get_clf_models():
     import xgboost as xgb
 
     models = [
-        ('LR', LogisticRegression(random_state=0, max_iter=10000))
+        ('L2R', LogisticRegression(random_state=0, max_iter=10000))
         , ('KNN', KNeighborsClassifier(n_neighbors=20)),
         ('DT', DecisionTreeClassifier(criterion='entropy', random_state=0)),
         ('SVM', SVC(kernel='linear', random_state=0)),
@@ -47,10 +47,10 @@ def calculate_clf_metrics(y_true, y_pred):
         roc_auc_score
     cv_results = {}
     precision = precision_score(y_true, y_pred)
-    cv_results["precision"] = precision
+    cv_results["prec"] = precision
 
     balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
-    cv_results["balanced_accuracy"] = balanced_accuracy
+    cv_results["bal_acc"] = balanced_accuracy
 
     roc_auc = roc_auc_score(y_true, y_pred, average='weighted')
     cv_results["roc_auc"] = roc_auc
