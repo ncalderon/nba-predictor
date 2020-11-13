@@ -1,9 +1,7 @@
 from collections import defaultdict
 
 from sklearn.pipeline import Pipeline
-import numpy as np
 import utils
-from boruta import BorutaPy
 import model.config as conf
 
 exp_results = []
@@ -58,14 +56,6 @@ def calculate_clf_metrics(y_true, y_pred):
     return cv_results
 
 
-def feature_selection(model, X_train, y_train):
-    boruta_selector = BorutaPy(model, n_estimators=200, random_state=0)
-    boruta_selector.fit(np.array(X_train), np.array(y_train))
-    boruta_ranking = boruta_selector.ranking_
-    selected_features = np.array(conf.X_NUM_COLS)[boruta_ranking <= 2]
-    return selected_features
-
-
 def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
                    preprocessor=None):
     results = []
@@ -79,7 +69,6 @@ def run_experiment(exp_name, models, folds, train_seasons, test_seasons, X, y,
             y_train, y_test = y.loc[train_idx], y.loc[test_idx]
             y_true = y_test
 
-            # feature_selection(model, X_train, y_train)
             pipeline = Pipeline(steps=[
                 ('preprocessor', preprocessor),
                 ('model', current_model)])
