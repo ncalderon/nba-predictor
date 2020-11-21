@@ -32,7 +32,7 @@ def numeric_cols(df):
                         'FG3M_',
                         'FTA_',
                         'FTM_',
-                        'OREB_', 'DREB_', 'PTS_CUM']
+                        'OREB_', 'DREB_', 'PTS_CUM', 'PTS_AGAINST_CUM', 'AGAINST_MEAN_ML10']
 
     fields = list(filter(lambda x: all(item not in x for item in fields_to_filter), fields))
     # fields = list(filter(lambda x: x[-4:] in ["HOME", "AWAY"], list(df.columns.unique())))
