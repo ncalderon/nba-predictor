@@ -17,19 +17,28 @@ def create_calculate_fields(df):
 
 
 def numeric_cols(df):
-    fields = list(filter(lambda x: x[-4:] in ["HOME", "AWAY"], list(df.columns.unique())))
-    fields = list(filter(lambda x: x[:-5] not in [
-        'GAME_ID ',
-        'TEAM_ID',
-        'HOME_WINS',
-        'TEAM_ABBREVIATION',
-        'TEAM_NAME',
-        'GAME_DATE_EST',
-        'MATCHUP',
-        'WL',
-        'MIN', 'W_L', 'SEASON', 'LOCATION', 'UNIQUE_MATCHUP']
-                         , fields))
-    #fields = list(filter(lambda x: x[:3] not in ['W_L'], fields))
+    fields_to_filter = ['_CUM',
+                        '_L10_CUM',
+                        '_ML10',
+                        '_CUM_ML10',
+                        '_MEAN',
+                        '_L10',
+                        'PYTHAGOREAN_EXPECTATION']
+
+    fields = list(filter(lambda x: any(item in x for item in fields_to_filter), list(df.columns.unique())))
+    # fields = list(filter(lambda x: x[-4:] in ["HOME", "AWAY"], list(df.columns.unique())))
+    # fields = list(filter(lambda x: x[:-5] not in [
+    #     'GAME_ID ',
+    #     'TEAM_ID',
+    #     'HOME_WINS',
+    #     'TEAM_ABBREVIATION',
+    #     'TEAM_NAME',
+    #     'GAME_DATE_EST',
+    #     'MATCHUP',
+    #     'WL',
+    #     'MIN', 'W_L', 'SEASON', 'LOCATION', 'UNIQUE_MATCHUP']
+    #                      , fields))
+    # fields = list(filter(lambda x: x[:3] not in ['W_L'], fields))
     return fields
 
 
@@ -106,7 +115,8 @@ def create_raw_season_games_df():
     raw_season_games = pd.merge(raw_season_games, matchup_season_games_mean, suffixes=['', '_ML10'],
                                 on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
 
-    matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[['W_L', 'PTS', 'PTS_AGAINST']] \
+    matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[
+        ['W_L', 'PTS', 'PTS_AGAINST']] \
         .rolling(window=10, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
     raw_season_games = pd.merge(raw_season_games, matchup_season_games_w_l_cum, suffixes=['', '_CUM_ML10'],
                                 on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
@@ -155,18 +165,20 @@ def create_season_game_df(raw_season_games):
         result = joined[joined.TEAM_ID_HOME != joined.TEAM_ID_AWAY]
         season_games = pd.concat([season_games, result])
 
-    #season_games = season_games.T.drop_duplicates().T
+    # season_games = season_games.T.drop_duplicates().T
     season_games = season_games.loc[:, ~season_games.columns.duplicated()]
     season_games["HOME_WINS"] = np.where(season_games['WL_HOME'] == 'W', 1, 0)
     season_games["HOME_POINT_SPREAD"] = season_games['PTS_HOME'] - season_games['PTS_AWAY']
 
-    season_games["PYTHAGOREAN_EXPECTATION_HOME"] = 1 / (1 + (season_games['PTS_AGAINST_CUM_HOME'] / season_games['PTS_CUM_HOME']) ** 13.91)
-    season_games["PYTHAGOREAN_EXPECTATION_AWAY"] = 1 / (1 + (season_games['PTS_AGAINST_CUM_AWAY'] / season_games['PTS_CUM_AWAY']) ** 13.91)
+    season_games["PYTHAGOREAN_EXPECTATION_HOME"] = 1 / (
+                1 + (season_games['PTS_AGAINST_CUM_HOME'] / season_games['PTS_CUM_HOME']) ** 13.91)
+    season_games["PYTHAGOREAN_EXPECTATION_AWAY"] = 1 / (
+                1 + (season_games['PTS_AGAINST_CUM_AWAY'] / season_games['PTS_CUM_AWAY']) ** 13.91)
 
     season_games["PYTHAGOREAN_EXPECTATION_L10_HOME"] = 1 / (
-                1 + (season_games['PTS_AGAINST_L10_CUM_HOME'] / season_games['PTS_L10_CUM_HOME']) ** 13.91)
+            1 + (season_games['PTS_AGAINST_L10_CUM_HOME'] / season_games['PTS_L10_CUM_HOME']) ** 13.91)
     season_games["PYTHAGOREAN_EXPECTATION_L10_AWAY"] = 1 / (
-                1 + (season_games['PTS_AGAINST_L10_CUM_AWAY'] / season_games['PTS_L10_CUM_AWAY']) ** 13.91)
+            1 + (season_games['PTS_AGAINST_L10_CUM_AWAY'] / season_games['PTS_L10_CUM_AWAY']) ** 13.91)
 
     season_games["PYTHAGOREAN_EXPECTATION_CUM_ML10_HOME"] = 1 / (
             1 + (season_games['PTS_AGAINST_CUM_ML10_HOME'] / season_games['PTS_CUM_ML10_HOME']) ** 13.91)
@@ -207,6 +219,5 @@ def load_raw_season_games_dataset():
 
 
 if __name__ == '__main__':
-    #create_raw_season_games_df()
+    # create_raw_season_games_df()
     create_season_game_df(load_raw_season_games_dataset())
-
