@@ -38,6 +38,11 @@ def matchup_field_by_id(row, df):
     return '-'.join(map(str, sorted(game_df.TEAM_ID.values.tolist())))
 
 
+def pts_against(row, df):
+    against_row = df[((df.index == row.name) & (df.TEAM_ID != row.TEAM_ID))].iloc[0]
+    return against_row.PTS
+
+
 def create_raw_season_games_df():
     print("Create raw season games dataset. ")
     seasons = data.load_seasons().SEASON.unique()
@@ -52,9 +57,11 @@ def create_raw_season_games_df():
         season_games.dropna(inplace=True)
         season_games.drop(columns=['VIDEO_AVAILABLE'], axis=1, inplace=True)
 
+        season_games["PTS_AGAINST"] = season_games.apply(lambda row: pts_against(row, season_games), axis=1)
+
         season_games["W_L"] = np.where(season_games['WL'] == 'W', 1, -1)
 
-        season_games_sum = season_games.groupby(by=["TEAM_ID"])[['W_L', 'PTS']] \
+        season_games_sum = season_games.groupby(by=["TEAM_ID"])[['W_L', 'PTS', 'PTS_AGAINST']] \
             .expanding().sum().groupby(level=0).shift(1).reset_index(level=0)
         # season_games_sum['W_L'] = season_games_sum['W_L'].fillna(0)
         season_games = pd.merge(season_games, season_games_sum, suffixes=['', '_CUM'],
@@ -66,7 +73,7 @@ def create_raw_season_games_df():
         # season_games = pd.merge(season_games, season_games_l5_sum, suffixes=['', '_L5_CUM'],
         #                         on=['GAME_ID', 'TEAM_ID'])
 
-        season_games_l10_sum = season_games.groupby(by=["TEAM_ID"])[['W_L', 'PTS']] \
+        season_games_l10_sum = season_games.groupby(by=["TEAM_ID"])[['W_L', 'PTS', 'PTS_AGAINST']] \
             .rolling(window=10, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0)
 
         season_games = pd.merge(season_games, season_games_l10_sum, suffixes=['', '_L10_CUM'],
@@ -99,7 +106,7 @@ def create_raw_season_games_df():
     raw_season_games = pd.merge(raw_season_games, matchup_season_games_mean, suffixes=['', '_ML10'],
                                 on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
 
-    matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[['W_L', 'PTS']] \
+    matchup_season_games_w_l_cum = raw_season_games.groupby(by=["TEAM_ID", "UNIQUE_MATCHUP"])[['W_L', 'PTS', 'PTS_AGAINST']] \
         .rolling(window=10, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0).reset_index(level=0)
     raw_season_games = pd.merge(raw_season_games, matchup_season_games_w_l_cum, suffixes=['', '_CUM_ML10'],
                                 on=['GAME_ID', 'TEAM_ID', 'UNIQUE_MATCHUP'])
@@ -148,22 +155,23 @@ def create_season_game_df(raw_season_games):
         result = joined[joined.TEAM_ID_HOME != joined.TEAM_ID_AWAY]
         season_games = pd.concat([season_games, result])
 
-    season_games = season_games.T.drop_duplicates().T
+    #season_games = season_games.T.drop_duplicates().T
+    season_games = season_games.loc[:, ~season_games.columns.duplicated()]
     season_games["HOME_WINS"] = np.where(season_games['WL_HOME'] == 'W', 1, 0)
     season_games["HOME_POINT_SPREAD"] = season_games['PTS_HOME'] - season_games['PTS_AWAY']
 
-    season_games["PYTHAGOREAN_EXPECTATION_HOME"] = 1 / (1 + (season_games['PTS_CUM_AWAY'] / season_games['PTS_CUM_HOME']) ** 13.91)
-    season_games["PYTHAGOREAN_EXPECTATION_AWAY"] = 1 / (1 + (season_games['PTS_CUM_HOME'] / season_games['PTS_CUM_AWAY']) ** 13.91)
+    season_games["PYTHAGOREAN_EXPECTATION_HOME"] = 1 / (1 + (season_games['PTS_AGAINST_CUM_HOME'] / season_games['PTS_CUM_HOME']) ** 13.91)
+    season_games["PYTHAGOREAN_EXPECTATION_AWAY"] = 1 / (1 + (season_games['PTS_AGAINST_CUM_AWAY'] / season_games['PTS_CUM_AWAY']) ** 13.91)
 
     season_games["PYTHAGOREAN_EXPECTATION_L10_HOME"] = 1 / (
-                1 + (season_games['PTS_L10_CUM_AWAY'] / season_games['PTS_L10_CUM_HOME']) ** 13.91)
+                1 + (season_games['PTS_AGAINST_L10_CUM_HOME'] / season_games['PTS_L10_CUM_HOME']) ** 13.91)
     season_games["PYTHAGOREAN_EXPECTATION_L10_AWAY"] = 1 / (
-                1 + (season_games['PTS_L10_CUM_HOME'] / season_games['PTS_L10_CUM_AWAY']) ** 13.91)
+                1 + (season_games['PTS_AGAINST_L10_CUM_AWAY'] / season_games['PTS_L10_CUM_AWAY']) ** 13.91)
 
     season_games["PYTHAGOREAN_EXPECTATION_CUM_ML10_HOME"] = 1 / (
-            1 + (season_games['PTS_CUM_ML10_AWAY'] / season_games['PTS_CUM_ML10_HOME']) ** 13.91)
+            1 + (season_games['PTS_AGAINST_CUM_ML10_HOME'] / season_games['PTS_CUM_ML10_HOME']) ** 13.91)
     season_games["PYTHAGOREAN_EXPECTATION_CUM_ML10_AWAY"] = 1 / (
-            1 + (season_games['PTS_CUM_ML10_HOME'] / season_games['PTS_CUM_ML10_AWAY']) ** 13.91)
+            1 + (season_games['PTS_AGAINST_CUM_ML10_AWAY'] / season_games['PTS_CUM_ML10_AWAY']) ** 13.91)
 
     season_games["PTS"] = season_games['PTS_HOME'] + season_games['PTS_AWAY']
     season_games["SEASON"] = season_games.SEASON_ID.str[-4:].astype(int)
