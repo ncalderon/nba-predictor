@@ -17,7 +17,8 @@ def create_calculate_fields(df):
 
 
 def numeric_cols(df):
-    fields_to_filter = ['_CUM',
+    fields_to_filter = ['G_PLAYED',
+                        '_CUM',
                         '_CUM_L10',
                         '_ML10',
                         '_CUM_ML10',
@@ -92,6 +93,8 @@ def create_raw_season_games_df():
 
         season_games["W_L"] = np.where(season_games['WL'] == 'W', 1, -1)
 
+        season_games["G_PLAYED"] = season_games.groupby(by=["TEAM_ID"]).cumcount()
+
         season_games_sum = season_games.groupby(by=["TEAM_ID"])[[
             'W_L', 'PTS', 'PTS_AGAINST'
             , 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM', 'FTA',
@@ -102,6 +105,7 @@ def create_raw_season_games_df():
         # season_games_sum['W_L'] = season_games_sum['W_L'].fillna(0)
         season_games = pd.merge(season_games, season_games_sum, suffixes=['', '_CUM'],
                                 on=['GAME_ID', 'TEAM_ID'])
+
 
         # season_games_l5_sum = season_games.groupby(by=["TEAM_ID"])[['W_L']] \
         #     .rolling(window=5, min_periods=0).sum().groupby(level=0).shift(1).reset_index(level=0)
@@ -336,5 +340,5 @@ def load_raw_season_games_dataset():
 
 
 if __name__ == '__main__':
-    # create_raw_season_games_df()
-    create_season_game_df(load_raw_season_games_dataset())
+    create_raw_season_games_df()
+    #create_season_game_df(load_raw_season_games_dataset())
