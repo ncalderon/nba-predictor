@@ -2,7 +2,6 @@
 import pickle
 import pprint
 
-import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -14,6 +13,19 @@ import model.dataset.config as config
 pp = pprint.PrettyPrinter(width=41, compact=True)
 
 
+def folds_to_df(folds, train_seasons, test_seasons):
+    list_df = []
+
+    for idx, f in enumerate(folds):
+        item = {}
+        item['train_seasons'] = train_seasons[idx]
+        item['train_samples_size'] = len(f[0])
+        item['test_seasons'] = test_seasons[idx]
+        item['test_samples_size'] = len(f[1])
+        list_df.append(item)
+    return pd.DataFrame(list_df)
+
+
 class SeasonSeriesSplit:
     df: DataFrame
     season_quarters = []
@@ -21,7 +33,7 @@ class SeasonSeriesSplit:
     def __init__(self, df_input):
         self.df = df_input.reset_index()
 
-    def __quarter_split(self, skip=[]):
+    def __quarter_split(self, remove_quarters=[]):
         self.season_quarters = []
         df_gr = self.df.groupby("SEASON")
         quarters = [0.25, 0.50, 0.75, 1]
@@ -30,10 +42,10 @@ class SeasonSeriesSplit:
             start = 0
             end = 0
             for q in quarters:
-                if q in skip:
-                    continue
                 start = end
                 end = int(season_size * q)
+                if q in remove_quarters:
+                    continue
                 self.season_quarters.append(
                     (group[start:end].index.values, season + q - 0.25)
                 )
@@ -64,24 +76,24 @@ class SeasonSeriesSplit:
                  ))
         return folds, train_seasons, test_seasons
 
-    def quarter_split(self, train_size=3, test_size=1, skip=[]):
+    def quarter_split(self, train_size=3, test_size=1, skip_size=0, remove_quarters=[]):
         test_idx_from, train_start_idx, train_end_idx, test_start_idx, test_end_idx = 0, 0, 0, 0, 0
-        if skip:
-            self.__quarter_split(skip)
+        if remove_quarters:
+            self.__quarter_split(remove_quarters)
         else:
             self.__quarter_split()
         folds = []
         train_seasons = []
         test_seasons = []
         q_split = len(self.season_quarters)
-        start = -1
+        start = (-test_size - skip_size)
         end = 0
         while q_split >= train_size + test_size:
-            start += 1
+            start += (test_size + skip_size)
             end = start + train_size
             start_test = end
             end_test = start_test + test_size
-            q_split -= 1
+            q_split -= (test_size + skip_size)
             train_seasons.append("-".join(map(lambda x: str(x)[2:],
                                               [x1 for x, x1 in self.season_quarters[start:end]]
                                               )))
@@ -147,7 +159,7 @@ def plot_to_compare_experiments(results_total, metric="balanced_accuracy", figsi
                 a = sns.lineplot(data=results_df,
                                  x="season_test", y=metric, hue="model", style="model",
                                  markers=True, dashes=False,
-                                  ax=ax_row)
+                                 ax=ax_row)
             else:
                 a = sns.boxplot(x="model", y=metric, data=results_df, ax=ax_row)
             a.set_xlabel(None)
@@ -163,5 +175,5 @@ def print_exp_progress(result):
 if __name__ == '__main__':
     df = deserialize_object("df")
     sscv = SeasonSeriesSplit(df)
-    folds, train_seasons, test_seasons = sscv.split(train_size=1, test_size=1)
+    folds, train_seasons, test_seasons = sscv.quarter_split(train_size=3, test_size=1, skip_size=3)
     pass

@@ -26,11 +26,11 @@ def get_clf_models():
                                       max_depth=20,
                                       n_jobs=-1,
                                       random_state=0)),
-        ("XGB", xgb.XGBClassifier(
+        ("LGB", lgb.LGBMClassifier(
             random_state=0,
             max_depth=20,
             n_estimators=200
-        )), ("LGB", lgb.LGBMClassifier(
+        )),("XGB", xgb.XGBClassifier(
             random_state=0,
             max_depth=20,
             n_estimators=200

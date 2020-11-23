@@ -306,17 +306,13 @@ def create_season_game_df(raw_season_games):
     add_pythagorean_expectation_features(season_games)
     add_all_shooting_mean(season_games)
     add_all_against_shooting_mean(season_games)
+
     season_games["PTS"] = season_games['PTS_HOME'] + season_games['PTS_AWAY']
     season_games["SEASON"] = season_games.SEASON_ID.str[-4:].astype(int)
     season_games["GAME_DATE_EST"] = season_games.GAME_DATE
-    # season_games['RANKING_HOME'] = season_games.apply(lambda row: calculate_ranking(row, 'HOME'),
-    #                                                   axis=1)
-    # season_games['RANKING_AWAY'] = season_games.apply(lambda row: calculate_ranking(row, 'AWAY'),
-    #                                                   axis=1)
-    #
-    # season_games['HOME_RANKING'] = season_games.apply(lambda row: calculate_ranking(row, 'BOTH'),
-    #                                                   axis=1)
+
     create_calculate_fields(season_games)
+    season_games["G_PLAYED"] = season_games['G_PLAYED_HOME'] + season_games['G_PLAYED_AWAY']
     season_games.reset_index(inplace=True)
     season_games.to_feather(config.SEASON_GAMES_DS)
     season_games.to_csv(config.SEASON_GAMES_DS_CSV)
@@ -340,5 +336,5 @@ def load_raw_season_games_dataset():
 
 
 if __name__ == '__main__':
-    create_raw_season_games_df()
-    #create_season_game_df(load_raw_season_games_dataset())
+    #create_raw_season_games_df()
+    create_season_game_df(load_raw_season_games_dataset())
