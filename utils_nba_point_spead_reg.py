@@ -145,6 +145,7 @@ def run_experiment_2_seasons(exp_name, models, folds, train_seasons, test_season
     print("Done")
     return names, results
 
+
 if __name__ == '__main__':
     import model.config as model_config
 
