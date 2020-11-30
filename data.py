@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-import model.dataset.seasons as season
-import model.dataset.teams as teams
-import model.dataset.game_matchup as matchup_games
-
+import model.dataset.season_game as sg
 
 if __name__ == '__main__':
-    season.create_seasons_dataset()
-    teams.create_teams_dataset()
-    matchup_games.create_matchup_games_dataset()
+    sg.create_raw_season_games_df()
+    sg.create_season_game_df(sg.load_raw_season_games_dataset())
